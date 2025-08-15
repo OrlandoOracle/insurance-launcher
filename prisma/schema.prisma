@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  howHeard  String?
+  
+  stage     Stage      @default(NEW_LEAD)
+  ghlUrl    String?
+  tags      String     @default("[]") // JSON array stored as string
+  
+  activities Activity[]
+  tasks      Task[]
+  
+  @@index([lastName])
+  @@index([phone])
+  @@index([email])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  type      ActivityType
+  summary   String
+  details   String?
+  direction Direction?
+  outcome   Outcome?
+  revenue   Float?   // Only used when outcome=CLOSE
+  
+  @@index([contactId])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  title     String
+  dueAt     DateTime?
+  status    TaskStatus @default(OPEN)
+  source    TaskSource @default(MANUAL)
+  
+  @@index([contactId])
+  @@index([status])
+  @@index([dueAt])
+}
+
+model Setting {
+  id             String   @id @default("singleton")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  kixieUrl       String   @default("https://app.kixie.com")
+  icsCalendarUrl String?
+  dataDir        String   @default("./data")
+}
+
+enum Stage {
+  NEW_LEAD
+  DISCOVERY
+  QUOTE
+  PRESENTATION
+  APP
+  SOLD
+  ONBOARD
+  RENEWAL
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  SMS
+  TASK
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum Outcome {
+  DIAL
+  CONNECT
+  CLOSE
+  LEFT_VM
+  NO_ANSWER
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+enum TaskSource {
+  MANUAL
+  AI_SUGGESTED
+  SYSTEM
+}
