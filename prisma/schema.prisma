@@ -9,27 +9,27 @@ datasource db {
 
 // Lead model (maps to Contact table for backward compatibility)
 model Lead {
-  id             String     @id @default(cuid())
-  firstName      String
-  lastName       String
-  email          String?
-  phone          String?
-  source         String?      // "How heard"
-  stage          LeadStage  @default(NEW)
-  lastContacted  DateTime?
-  archivedAt     DateTime?
-  noShowAt       DateTime?
-  
+  id            String    @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  source        String? // "How heard"
+  stage         LeadStage @default(NEW)
+  lastContacted DateTime?
+  archivedAt    DateTime?
+  noShowAt      DateTime?
+
   // existing fields
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  ghlUrl         String?
-  tags           String     @default("[]") // JSON array stored as string
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ghlUrl    String?
+  tags      String   @default("[]") // JSON array stored as string
+
   // relations
-  activities     Activity[]
-  tasks          Task[]
-  
+  activities Activity[]
+  tasks      Task[]
+
   @@index([lastName])
   @@index([phone])
   @@index([email])
@@ -40,23 +40,23 @@ model Activity {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   date      DateTime @default(now())
-  
+
   contactId String?
-  lead      Lead?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  
+  contact   Lead?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
   type      ActivityType
   summary   String
   details   String?
   direction Direction?
   outcome   Outcome?
-  
+
   // KPI metadata
-  count     Int?      // dials, connects, closes
-  revenue   Float?    // revenue dollars
+  count     Int? // dials, connects, closes
+  revenue   Float? // revenue dollars
   notes     String?
-  voicemail Boolean   @default(false)
-  smsSent   Boolean   @default(false)
-  
+  voicemail Boolean @default(false)
+  smsSent   Boolean @default(false)
+
   @@index([contactId])
   @@index([date])
   @@index([type])
@@ -66,38 +66,43 @@ model Task {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   contactId String?
-  lead      Lead?    @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  
-  title     String
-  dueAt     DateTime?
-  status    TaskStatus @default(OPEN)
-  source    TaskSource @default(MANUAL)
-  
+  contact   Lead?   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  title    String
+  dueAt    DateTime?
+  status   TaskStatus   @default(OPEN)
+  source   TaskSource   @default(MANUAL)
+  priority TaskPriority @default(MEDIUM)
+  label    String?
+  stage    TaskStage    @default(NEW)
+
   @@index([contactId])
   @@index([status])
   @@index([dueAt])
+  @@index([priority])
+  @@index([stage])
 }
 
 model Setting {
-  id               String   @id @default("singleton")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  kixieUrl         String   @default("https://app.kixie.com")
+  id        String   @id @default("singleton")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kixieUrl         String  @default("https://app.kixie.com")
   icsCalendarUrl   String?
-  dataDir          String   @default("./data")
+  dataDir          String  @default("./data")
   ghlOppsUrl       String?
   chromeProfileDir String?
-  dashboardLayout  Json?    // Stores user's dashboard widget layout
+  dashboardLayout  Json? // Stores user's dashboard widget layout
 }
 
 model ImportBatch {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   filename  String
-  path      String   // absolute or resolved path under DATA_DIR/imports
+  path      String // absolute or resolved path under DATA_DIR/imports
   total     Int
   imported  Int
   errors    Int
@@ -105,20 +110,20 @@ model ImportBatch {
 }
 
 model DiscoverySession {
-  id            String   @id @default(cuid())
-  sessionId     String   @unique
-  clientId      String?  // Link to Lead.id
-  clientName    String?
-  primaryDob    String?
-  zip           String?
-  state         String?
-  county        String?
-  jsonPayload   Json
-  yamlPayload   String   @default("")
-  rapport       Json     @default("[]")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  clientId    String? // Link to Lead.id
+  clientName  String?
+  primaryDob  String?
+  zip         String?
+  state       String?
+  county      String?
+  jsonPayload Json
+  yamlPayload String   @default("")
+  rapport     Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([sessionId])
   @@index([clientId])
   @@index([createdAt])
@@ -168,4 +173,17 @@ enum TaskSource {
   MANUAL
   AI_SUGGESTED
   SYSTEM
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStage {
+  NEW
+  WORKING
+  WAITING
+  DONE
 }

@@ -41,10 +41,10 @@ export function TaskList({ tasks, showAll = false, onAddTask }: TaskListProps) {
   
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 sm:gap-2">
-            <CardTitle className="text-base sm:text-lg">My Tasks</CardTitle>
+            <CardTitle className="text-xl font-semibold">My Tasks</CardTitle>
             {onAddTask && (
               <TooltipProvider>
                 <Tooltip>
@@ -73,10 +73,10 @@ export function TaskList({ tasks, showAll = false, onAddTask }: TaskListProps) {
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-5 pt-0">
         <div className="space-y-2">
           {displayTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No open tasks</p>
+            <p className="text-sm text-gray-400">No open tasks</p>
           ) : (
             displayTasks.map((task) => (
               <div key={task.id} className="flex items-center justify-between p-2 hover:bg-accent rounded-lg">

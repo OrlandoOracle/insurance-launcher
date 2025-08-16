@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { KPICards } from "@/components/kpi-cards"
+import { DashboardKPIs } from "@/components/dashboard-kpis"
 import { TaskList } from "@/components/task-list"
 import { getKPIs } from "@/app/actions/kpis"
 import { getTasks, getOverdueTasks, createTask } from "@/app/actions/tasks"
@@ -11,25 +11,165 @@ import { getSettings } from "@/app/actions/settings"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Plus, Upload, Phone, Calendar, AlertCircle } from "lucide-react"
+import { Plus, Upload, Phone, Calendar, AlertCircle, GripVertical } from "lucide-react"
 import { LeadIntakeForm } from "@/components/lead-intake-form"
 import { GlobalHotkeys } from "@/components/global-hotkeys"
 import { TaskReminders } from "@/components/task-reminders"
 import { toast } from "sonner"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+interface DashboardCard {
+  id: string
+  component: React.ReactNode
+  width?: 'full' | '2/3' | '1/3'
+}
+
+function SortableCard({ card }: { card: DashboardCard }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const widthClass = card.width === '2/3' ? 'lg:col-span-2' : card.width === '1/3' ? 'lg:col-span-1' : 'col-span-full'
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative ${widthClass}`}
+    >
+      <div className="absolute top-3 left-3 z-10 cursor-move opacity-0 hover:opacity-100 transition-opacity" {...listeners} {...attributes}>
+        <GripVertical className="h-5 w-5 text-gray-400" />
+      </div>
+      {card.component}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const [showIntakeForm, setShowIntakeForm] = useState(false)
   const [showNewTask, setShowNewTask] = useState(false)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [timeline, setTimeline] = useState<'today' | 'week'>('today')
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     dueAt: ''
   })
 
+  const [cards, setCards] = useState<DashboardCard[]>([])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (data) {
+      const kpis = timeline === 'today' ? data.todayKPIs : data.weekKPIs
+      
+      const newCards: DashboardCard[] = [
+        {
+          id: 'tasks',
+          width: '2/3',
+          component: (
+            <TaskList 
+              tasks={data.tasks} 
+              onAddTask={() => setShowNewTask(true)}
+            />
+          )
+        },
+        {
+          id: 'quick-actions',
+          width: '1/3',
+          component: (
+            <Card>
+              <CardHeader className="p-5">
+                <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                <div className="grid gap-2">
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    onClick={() => setShowIntakeForm(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Lead
+                  </Button>
+                  
+                  <Link href="/import">
+                    <Button className="w-full justify-start" variant="outline">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Import CSV
+                    </Button>
+                  </Link>
+                  
+                  <a href={data.settings.kixieUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full justify-start" variant="outline">
+                      <Phone className="mr-2 h-4 w-4" />
+                      Open Kixie PowerDialer
+                    </Button>
+                  </a>
+                  
+                  {data.settings.icsCalendarUrl && (
+                    <Link href="/tasks">
+                      <Button className="w-full justify-start" variant="outline">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Open Today's Calendar
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+                {!data.settings.kixieUrl && !data.settings.icsCalendarUrl && (
+                  <p className="text-sm text-gray-400 mt-4">
+                    Configure integrations in Settings
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )
+        }
+      ]
+      
+      setCards(newCards)
+    }
+  }, [data, timeline])
 
   const loadData = async () => {
     const [todayKPIs, weekKPIs, tasks, overdueTasks, settings] = await Promise.all([
@@ -54,11 +194,29 @@ export default function DashboardPage() {
       toast.success('Task created')
       setNewTaskData({ title: '', dueAt: '' })
       setShowNewTask(false)
-      loadData() // Reload to show the new task
+      loadData()
     } catch (error) {
       console.error('Error creating task:', error)
       toast.error('Failed to create task')
     }
+  }
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setCards((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id)
+        const newIndex = items.findIndex((item) => item.id === over.id)
+        return arrayMove(items, oldIndex, newIndex)
+      })
+    }
+    
+    setActiveId(null)
   }
 
   if (loading || !data) {
@@ -66,6 +224,7 @@ export default function DashboardPage() {
   }
 
   const { todayKPIs, weekKPIs, tasks, overdueTasks, settings } = data
+  const currentKPIs = timeline === 'today' ? todayKPIs : weekKPIs
   
   return (
     <>
@@ -84,62 +243,37 @@ export default function DashboardPage() {
         </div>
       )}
       
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Today's Performance</h2>
-        <KPICards {...todayKPIs} />
-      </div>
+      <DashboardKPIs
+        kpis={currentKPIs}
+        timeline={timeline}
+        onTimelineChange={setTimeline}
+      />
       
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Last 7 Days</h2>
-        <KPICards {...weekKPIs} />
-      </div>
-      
-      <div className="grid gap-6 md:grid-cols-2">
-        <TaskList 
-          tasks={tasks} 
-          onAddTask={() => setShowNewTask(true)}
-        />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-2">
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={() => setShowIntakeForm(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Lead
-              </Button>
-              
-              <Link href="/import">
-                <Button className="w-full justify-start" variant="outline">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import CSV
-                </Button>
-              </Link>
-              
-              <a href={settings.kixieUrl} target="_blank" rel="noopener noreferrer">
-                <Button className="w-full justify-start" variant="outline">
-                  <Phone className="mr-2 h-4 w-4" />
-                  Open Kixie PowerDialer
-                </Button>
-              </a>
-              
-              {settings.icsCalendarUrl && (
-                <Link href="/tasks">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Open Today's Calendar
-                  </Button>
-                </Link>
-              )}
+      <div className="border-t border-gray-200 mt-6 pt-6">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={cards.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid gap-6 lg:grid-cols-3">
+              {cards.map((card) => (
+                <SortableCard key={card.id} card={card} />
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </SortableContext>
+          <DragOverlay>
+            {activeId ? (
+              <div className="opacity-50">
+                {cards.find(c => c.id === activeId)?.component}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
     
@@ -151,7 +285,6 @@ export default function DashboardPage() {
       }} 
     />
 
-    {/* New Task Dialog */}
     <Dialog open={showNewTask} onOpenChange={setShowNewTask}>
       <DialogContent>
         <DialogHeader>

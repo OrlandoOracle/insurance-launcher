@@ -4,16 +4,41 @@ import { prisma } from '@/lib/db'
 import { TaskStatus, TaskSource } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
-export async function getTasks(status?: TaskStatus, contactId?: string) {
+export async function getTasks(filters?: {
+  status?: TaskStatus | TaskStatus[]
+  contactId?: string
+  stage?: string[]
+  priority?: string[]
+  q?: string
+}) {
   try {
     const where: any = {}
     
-    if (status) {
-      where.status = status
+    if (filters?.status) {
+      if (Array.isArray(filters.status)) {
+        where.status = { in: filters.status }
+      } else {
+        where.status = filters.status
+      }
     }
     
-    if (contactId) {
-      where.contactId = contactId
+    if (filters?.contactId) {
+      where.contactId = filters.contactId
+    }
+    
+    if (filters?.stage?.length) {
+      where.stage = { in: filters.stage }
+    }
+    
+    if (filters?.priority?.length) {
+      where.priority = { in: filters.priority }
+    }
+    
+    if (filters?.q) {
+      where.title = { 
+        contains: filters.q,
+        mode: 'insensitive'
+      }
     }
     
     return await prisma.task.findMany({
@@ -34,6 +59,50 @@ export async function getTasks(status?: TaskStatus, contactId?: string) {
     }
     console.error('[Tasks] Error fetching tasks:', error)
     throw error
+  }
+}
+
+export async function getTasksCount(filters?: {
+  status?: TaskStatus | TaskStatus[]
+  contactId?: string
+  stage?: string[]
+  priority?: string[]
+  q?: string
+}) {
+  try {
+    const where: any = {}
+    
+    if (filters?.status) {
+      if (Array.isArray(filters.status)) {
+        where.status = { in: filters.status }
+      } else {
+        where.status = filters.status
+      }
+    }
+    
+    if (filters?.contactId) {
+      where.contactId = filters.contactId
+    }
+    
+    if (filters?.stage?.length) {
+      where.stage = { in: filters.stage }
+    }
+    
+    if (filters?.priority?.length) {
+      where.priority = { in: filters.priority }
+    }
+    
+    if (filters?.q) {
+      where.title = { 
+        contains: filters.q,
+        mode: 'insensitive'
+      }
+    }
+    
+    return await prisma.task.count({ where })
+  } catch (error: any) {
+    console.error('[Tasks] Error counting tasks:', error)
+    return 0
   }
 }
 

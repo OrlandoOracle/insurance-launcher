@@ -3,11 +3,12 @@ import { prisma } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const contact = await prisma.contact.findUnique({
-      where: { id: params.id },
+    const { id } = await params
+    const contact = await prisma.lead.findUnique({
+      where: { id },
       include: {
         tasks: {
           orderBy: { dueAt: 'asc' }
