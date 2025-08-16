@@ -102,12 +102,9 @@ export async function contactExists({
   const conditions: any[] = [];
   
   if (email) {
-    // Case-insensitive email match
+    // Case-insensitive email match (already normalized to lowercase)
     conditions.push({ 
-      email: {
-        equals: normalizeEmail(email),
-        mode: 'insensitive'
-      }
+      email: normalizeEmail(email)
     });
   }
   
