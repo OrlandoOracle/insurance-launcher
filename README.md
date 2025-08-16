@@ -134,17 +134,42 @@ Required CSV fields:
 4. Copy generated prompt
 5. Paste into Claude or ChatGPT
 
-### External Drive Setup
+### External Drive Setup (Persistent Storage)
 
-To store data on an external drive:
+All app data (database, CSV imports, backups) can be stored on an external drive for persistence across system restarts:
 
-1. Go to Settings
-2. Set Data Directory to absolute path:
-   - Mac: `/Volumes/DriveName/FolderName`
-   - Windows: `D:\FolderName`
-   - Linux: `/mnt/drive/folder`
-3. Save settings
-4. Restart the app
+#### Via Environment Variable (Recommended)
+1. Edit `.env` file:
+   ```env
+   DATA_DIR=/Volumes/ExternalDrive/InsuranceData
+   ```
+2. Restart the app
+
+#### Via Settings Page
+1. Go to Settings → Data Storage
+2. Enter new directory path
+3. Click "Test Path" to verify accessibility
+4. Click "Move Data to New Directory"
+5. The app will:
+   - Create a backup of current data
+   - Copy all data to new location
+   - Update database path
+
+#### Storage Structure
+```
+DATA_DIR/
+├── insurance-launcher.db    # Main database
+├── imports/                  # Saved CSV files
+│   └── 2024-01-15_leads.csv
+└── backups/                  # Database backups
+    └── insurance-launcher_2024-01-15.db
+```
+
+#### Features
+- **Automatic Migration**: Moves existing data when changing directories
+- **Import History**: All CSV imports are saved with timestamps
+- **Backup Management**: Create and manage database backups
+- **Path Testing**: Verify directory is readable/writable before moving
 
 ### GoHighLevel Integration
 
@@ -338,6 +363,59 @@ Planned for future versions:
 - [ ] Mobile app
 - [ ] Voice note transcription
 - [ ] Automated follow-up sequences
+
+## Discovery Tool
+
+The First Call Discovery Tool is a comprehensive wizard for capturing client information during insurance discovery calls.
+
+### Features
+- **Multi-step wizard** with side navigation for easy jumping between sections
+- **Floating rapport pad** (Cmd/Ctrl+R) for capturing notes throughout the call
+- **Auto-save** every 3 seconds of idle time
+- **Conditional logic** shows relevant sections based on answers
+- **Multiple export formats**: JSON, YAML, and GHL-formatted text
+- **Persistent storage** in SQLite database under DATA_DIR
+- **Session management** for resuming and reviewing past calls
+
+### Starting a Discovery Session
+1. Navigate to `/discovery` or click "Discovery" in navigation
+2. Click "New Discovery Call" to start
+3. Work through the wizard steps, capturing information
+4. Use the floating Rapport Pad (⌘R) to capture ongoing notes
+5. Click "Complete Discovery Session" when finished
+6. Review and export the data in your preferred format
+
+### Keyboard Shortcuts
+- **Enter**: Next step
+- **Shift+Enter**: Previous step
+- **⌘/Ctrl+K**: Jump to section (command palette)
+- **⌘/Ctrl+R**: Toggle Rapport Pad
+- **⌘/Ctrl+S**: Save progress
+
+### Export Locations
+- **Database**: Stored in SQLite under `DiscoverySession` table
+- **JSON/YAML Files**: `${DATA_DIR}/exports/discovery/`
+- **Filename Format**: `YYYY-MM-DD_LastName_FirstName_discovery.{json|yaml}`
+
+### GHL Push Workflow
+1. Complete the discovery session
+2. Go to the Preview panel
+3. Click "Push to GHL"
+4. The formatted text is copied to clipboard
+5. A new tab opens with your GHL instance
+6. Paste the content into the appropriate GHL fields
+
+### Data Structure
+The discovery tool captures:
+- Client demographics and household members
+- Current insurance situation (losing coverage, paying too much, uninsured)
+- Coverage details and preferences
+- Health conditions and medications
+- Doctor preferences
+- Coverage priorities
+- Budget expectations
+- Next call scheduling details
+- Rapport notes with timestamps
 
 ## Support
 

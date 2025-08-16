@@ -87,6 +87,37 @@ model Setting {
   dashboardLayout  Json?    // Stores user's dashboard widget layout
 }
 
+model ImportBatch {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  filename  String
+  path      String   // absolute or resolved path under DATA_DIR/imports
+  total     Int
+  imported  Int
+  errors    Int
+  note      String?
+}
+
+model DiscoverySession {
+  id            String   @id @default(cuid())
+  sessionId     String   @unique
+  clientId      String?  // Link to Contact.id
+  clientName    String?
+  primaryDob    String?
+  zip           String?
+  state         String?
+  county        String?
+  jsonPayload   Json
+  yamlPayload   String   @default("")
+  rapport       Json     @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([sessionId])
+  @@index([clientId])
+  @@index([createdAt])
+}
+
 enum Stage {
   NEW_LEAD
   DISCOVERY

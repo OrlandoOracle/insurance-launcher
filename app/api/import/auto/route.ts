@@ -9,6 +9,9 @@ import {
   formatPhone10 
 } from '@/lib/import/normalize';
 import { contactExists } from '@/lib/dup';
+import { getDataDir } from '@/lib/storage';
+import { writeFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
 
 export type RowIssue = { 
   line: number; 
@@ -50,6 +53,21 @@ export async function POST(request: NextRequest) {
     
     // Read CSV content
     const csvContent = await csvFile.text();
+    
+    // Save CSV file to DATA_DIR/imports/
+    const dataDir = await getDataDir();
+    const importsDir = path.join(dataDir, 'imports');
+    await mkdir(importsDir, { recursive: true });
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, -5);
+    const sanitizedName = csvFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const savedFilename = `${timestamp}_${sanitizedName}`;
+    const savedPath = path.join(importsDir, savedFilename);
+    
+    // Save the file
+    const buffer = await csvFile.arrayBuffer();
+    await writeFile(savedPath, Buffer.from(buffer));
+    console.log('[Import] Saved CSV file to:', savedPath);
     
     // Pre-normalize text: strip BOM, normalize line endings, fix smart quotes
     const normalized = csvContent
@@ -350,6 +368,20 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+    
+    // Create ImportBatch record
+    const importBatch = await prisma.importBatch.create({
+      data: {
+        filename: csvFile.name,
+        path: savedPath,
+        total: rows.length,
+        imported: importedList.length,
+        errors: invalidList.length + issues.length,
+        note: `${duplicatesList.length} duplicates, ${issues.length} warnings`
+      }
+    });
+    
+    console.log('[Import] Created ImportBatch record:', importBatch.id);
     
     // Prepare result
     const result: ImportResult = {

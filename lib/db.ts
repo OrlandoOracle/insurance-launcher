@@ -1,15 +1,17 @@
 import { PrismaClient } from '@prisma/client'
 import path from 'path'
 import fs from 'fs'
+import { getDataDirSync, ensureDataDirs, ensureDatabase } from './storage'
 
 declare global {
   // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined
   var __DB_LOGGED__: boolean | undefined
+  var __DB_INITIALIZED__: boolean | undefined
 }
 
 function ensureDbUrl() {
-  const dir = process.env.DATA_DIR?.trim() || path.resolve(process.cwd(), 'data')
+  const dir = getDataDirSync()
   
   // Ensure directory exists
   if (!fs.existsSync(dir)) {
@@ -33,8 +35,26 @@ function ensureDbUrl() {
   return url
 }
 
+// Initialize storage on first import
+async function initializeStorage() {
+  if (!globalThis.__DB_INITIALIZED__) {
+    try {
+      await ensureDataDirs()
+      await ensureDatabase()
+      globalThis.__DB_INITIALIZED__ = true
+    } catch (error) {
+      console.error('[DB] Failed to initialize storage:', error)
+    }
+  }
+}
+
 // Ensure DB URL is set before creating PrismaClient
 ensureDbUrl()
+
+// Initialize storage in the background
+if (typeof window === 'undefined') {
+  initializeStorage().catch(console.error)
+}
 
 export const prisma =
   global.prisma ||

@@ -4,8 +4,21 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getSettings, updateSettings } from '@/app/actions/settings'
-import { Save, ExternalLink, FolderOpen, Chrome, User } from 'lucide-react'
+import { 
+  updateDataDirectory, 
+  testDataDirectory, 
+  createDatabaseBackup,
+  getStorageInfo 
+} from '@/app/actions/storage'
+import { 
+  Save, ExternalLink, FolderOpen, Chrome, User, 
+  Database, HardDrive, AlertCircle, CheckCircle, 
+  Download, RefreshCw, Folder
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -19,9 +32,20 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [availableProfiles, setAvailableProfiles] = useState<string[]>([])
   const [testResult, setTestResult] = useState<string>('')
+  
+  // Storage specific state
+  const [currentDataDir, setCurrentDataDir] = useState('')
+  const [newDataDir, setNewDataDir] = useState('')
+  const [testingDir, setTestingDir] = useState(false)
+  const [dirTestResult, setDirTestResult] = useState<any>(null)
+  const [movingData, setMovingData] = useState(false)
+  const [backups, setBackups] = useState<any[]>([])
+  const [importBatches, setImportBatches] = useState<any[]>([])
+  const [creatingBackup, setCreatingBackup] = useState(false)
 
   useEffect(() => {
     loadSettings()
+    loadStorageInfo()
   }, [])
 
   const loadSettings = async () => {
@@ -33,6 +57,19 @@ export default function SettingsPage() {
       ghlOppsUrl: data.ghlOppsUrl || '',
       chromeProfileDir: data.chromeProfileDir || ''
     })
+    setCurrentDataDir(data.dataDir)
+    setNewDataDir(data.dataDir)
+  }
+
+  const loadStorageInfo = async () => {
+    const info = await getStorageInfo()
+    if (info.success) {
+      setBackups(info.backups || [])
+      setImportBatches(info.importBatches || [])
+      if (info.dataDir) {
+        setCurrentDataDir(info.dataDir)
+      }
+    }
   }
 
   const handleSave = async () => {
@@ -49,10 +86,79 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const handleTestDataDir = async () => {
+    if (!newDataDir) {
+      toast.error('Please enter a directory path')
+      return
+    }
+    
+    setTestingDir(true)
+    setDirTestResult(null)
+    
+    const result = await testDataDirectory(newDataDir)
+    setDirTestResult(result)
+    setTestingDir(false)
+    
+    if (result.success) {
+      toast.success('Directory is accessible')
+    } else {
+      toast.error(result.error || 'Directory test failed')
+    }
+  }
+
+  const handleMoveDataDir = async () => {
+    if (!newDataDir || newDataDir === currentDataDir) {
+      toast.error('Please enter a different directory path')
+      return
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to move your data from:\n${currentDataDir}\n\nTo:\n${newDataDir}\n\nThis will copy all data to the new location and create a backup.`
+    )
+    
+    if (!confirmed) return
+    
+    setMovingData(true)
+    const result = await updateDataDirectory(newDataDir)
+    
+    if (result.success) {
+      toast.success(result.message || 'Data moved successfully')
+      setCurrentDataDir(newDataDir)
+      setSettings({ ...settings, dataDir: newDataDir })
+      await loadStorageInfo()
+    } else {
+      toast.error(result.error || 'Failed to move data')
+    }
+    
+    setMovingData(false)
+  }
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true)
+    const result = await createDatabaseBackup()
+    
+    if (result.success) {
+      toast.success('Backup created successfully')
+      await loadStorageInfo()
+    } else {
+      toast.error(result.error || 'Failed to create backup')
+    }
+    
+    setCreatingBackup(false)
+  }
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
   const openDataFolder = () => {
     // In a real app, this would open the folder in the file explorer
     // For now, we'll just show an alert
-    alert(`Data is stored at: ${settings.dataDir}`)
+    alert(`Data is stored at: ${currentDataDir}`)
   }
 
   const testOpenGHL = async () => {
@@ -116,30 +222,156 @@ export default function SettingsPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
 
+      {/* Enhanced Data Storage Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Storage</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Data Storage
+          </CardTitle>
           <CardDescription>
             Configure where your data is stored. Use an absolute path for external drives.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Current Directory Info */}
+          <Alert>
+            <HardDrive className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-1">
+                <p className="font-medium">Current Data Directory:</p>
+                <code className="block bg-gray-100 p-2 rounded text-sm">{currentDataDir}</code>
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span>Database: {currentDataDir}/insurance-launcher.db</span>
+                  <span>Imports: {currentDataDir}/imports/</span>
+                  <span>Backups: {currentDataDir}/backups/</span>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          {/* New Directory Input */}
           <div>
-            <label className="text-sm font-medium">Data Directory</label>
+            <label className="text-sm font-medium">New Data Directory</label>
             <div className="flex gap-2 mt-1">
               <Input
-                value={settings.dataDir}
-                onChange={(e) => setSettings({ ...settings, dataDir: e.target.value })}
+                value={newDataDir}
+                onChange={(e) => setNewDataDir(e.target.value)}
                 placeholder="/Volumes/ExternalDrive/InsuranceData"
+                className="flex-1"
               />
-              <Button variant="outline" onClick={openDataFolder}>
+              <Button 
+                variant="outline" 
+                onClick={handleTestDataDir}
+                disabled={testingDir}
+              >
+                {testingDir ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Test Path'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={openDataFolder}
+              >
                 <FolderOpen className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Current: {settings.dataDir}
-            </p>
+            {process.env.DATA_DIR && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Environment default: {process.env.DATA_DIR}
+              </p>
+            )}
           </div>
+
+          {/* Directory Test Result */}
+          {dirTestResult && (
+            <Alert variant={dirTestResult.success ? "default" : "destructive"}>
+              {dirTestResult.success ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p>Readable: {dirTestResult.readable ? '✓' : '✗'}</p>
+                  <p>Writable: {dirTestResult.writable ? '✓' : '✗'}</p>
+                  {dirTestResult.error && <p className="text-sm">Error: {dirTestResult.error}</p>}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Move Data Button */}
+          {newDataDir && newDataDir !== currentDataDir && (
+            <Button 
+              onClick={handleMoveDataDir}
+              disabled={movingData || !dirTestResult?.success}
+              className="w-full"
+            >
+              {movingData ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Moving Data...
+                </>
+              ) : (
+                <>
+                  <Folder className="mr-2 h-4 w-4" />
+                  Move Data to New Directory
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Backup Section */}
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-sm font-medium">Database Backups</h4>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleCreateBackup}
+                disabled={creatingBackup}
+              >
+                {creatingBackup ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Create Backup
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {backups.length > 0 ? (
+              <div className="space-y-1">
+                {backups.slice(0, 3).map((backup, i) => (
+                  <div key={i} className="text-xs text-muted-foreground">
+                    {backup.name} - {formatBytes(backup.size)} - {format(new Date(backup.created), 'MMM d, yyyy h:mm a')}
+                  </div>
+                ))}
+                {backups.length > 3 && (
+                  <p className="text-xs text-muted-foreground">
+                    ...and {backups.length - 3} more backups
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No backups yet</p>
+            )}
+          </div>
+
+          {/* Import History */}
+          {importBatches.length > 0 && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-2">Recent Imports</h4>
+              <div className="space-y-1">
+                {importBatches.slice(0, 3).map((batch) => (
+                  <div key={batch.id} className="text-xs text-muted-foreground">
+                    {batch.filename} - {batch.imported}/{batch.total} imported - {format(new Date(batch.createdAt), 'MMM d, yyyy')}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

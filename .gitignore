@@ -46,3 +46,9 @@ next-env.d.ts
 *.db
 *.db-journal
 data/
+
+# runtime
+/.cache
+/logs
+/playwright-report
+/test-results

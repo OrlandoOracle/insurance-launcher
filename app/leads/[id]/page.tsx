@@ -20,6 +20,7 @@ import {
   AlertCircle, Plus, FileText, User, Activity, Folder,
   Edit2, Save, X, Copy, ExternalLink, Clipboard
 } from 'lucide-react'
+import { DiscoveryButton } from '@/components/discovery/DiscoveryButton'
 
 export default function ContactDetailPage() {
   const params = useParams()
@@ -280,6 +281,12 @@ Created: ${format(new Date(contact.createdAt), 'PPP')}
               </div>
             </div>
             <div ref={toolbarRef} className="flex items-center gap-2">
+              <DiscoveryButton
+                clientId={contact.id}
+                clientName={`${contact.firstName} ${contact.lastName}`}
+                variant="default"
+                size="sm"
+              />
               {contact.ghlUrl && (
                 <Button
                   size="sm"
