@@ -33,18 +33,27 @@ model Contact {
 model Activity {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
+  date      DateTime @default(now())
   
-  contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
   
   type      ActivityType
   summary   String
   details   String?
   direction Direction?
   outcome   Outcome?
-  revenue   Float?   // Only used when outcome=CLOSE
+  
+  // KPI metadata
+  count     Int?      // dials, connects, closes
+  revenue   Float?    // revenue dollars
+  notes     String?
+  voicemail Boolean   @default(false)
+  smsSent   Boolean   @default(false)
   
   @@index([contactId])
+  @@index([date])
+  @@index([type])
 }
 
 model Task {
@@ -75,6 +84,7 @@ model Setting {
   dataDir          String   @default("./data")
   ghlOppsUrl       String?
   chromeProfileDir String?
+  dashboardLayout  Json?    // Stores user's dashboard widget layout
 }
 
 enum Stage {
@@ -94,6 +104,10 @@ enum ActivityType {
   EMAIL
   SMS
   TASK
+  DIAL
+  CONNECT
+  CLOSE
+  REVENUE
 }
 
 enum Direction {

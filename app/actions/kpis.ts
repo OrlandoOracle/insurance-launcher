@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/db'
 import { startOfDay, subDays } from 'date-fns'
+import { ActivityType } from '@prisma/client'
+import { getKpis, getRangeFromPreset, type KpiRange } from '@/lib/kpi'
+import { revalidatePath } from 'next/cache'
 
 export async function getKPIs(days: number = 7) {
   try {
@@ -62,4 +65,95 @@ export async function getKPIsSafe(days: number = 7) {
       conversionRate: '0'
     }
   }
+}
+
+export interface LogKpiInput {
+  type: ActivityType
+  count?: number
+  revenue?: number
+  contactIds?: string[]
+  notes?: string
+  voicemail?: boolean
+  smsSent?: boolean
+  date?: Date
+}
+
+export async function logKpi(input: LogKpiInput) {
+  try {
+    const date = input.date || new Date()
+    
+    // Create activities for each contact or one general activity
+    if (input.contactIds && input.contactIds.length > 0) {
+      // Create an activity for each contact
+      const activities = await Promise.all(
+        input.contactIds.map(contactId =>
+          prisma.activity.create({
+            data: {
+              contactId,
+              type: input.type,
+              date,
+              count: input.count || 1,
+              revenue: input.revenue,
+              notes: input.notes,
+              voicemail: input.voicemail || false,
+              smsSent: input.smsSent || false,
+              summary: getSummaryForKpi(input.type, input.count, input.revenue),
+              details: input.notes
+            }
+          })
+        )
+      )
+      
+      revalidatePath('/')
+      revalidatePath('/leads')
+      return { success: true, activities }
+    } else {
+      // Create a single activity without a contact
+      const activity = await prisma.activity.create({
+        data: {
+          type: input.type,
+          date,
+          count: input.count || 1,
+          revenue: input.revenue,
+          notes: input.notes,
+          voicemail: input.voicemail || false,
+          smsSent: input.smsSent || false,
+          summary: getSummaryForKpi(input.type, input.count, input.revenue),
+          details: input.notes
+        }
+      })
+      
+      revalidatePath('/')
+      revalidatePath('/leads')
+      return { success: true, activities: [activity] }
+    }
+  } catch (error) {
+    console.error('[KPI] Error logging KPI:', error)
+    return { success: false, error: 'Failed to log KPI' }
+  }
+}
+
+function getSummaryForKpi(type: ActivityType, count?: number, revenue?: number): string {
+  switch (type) {
+    case ActivityType.DIAL:
+      return `Logged ${count || 1} dial${(count || 1) > 1 ? 's' : ''}`
+    case ActivityType.CONNECT:
+      return `Logged ${count || 1} connect${(count || 1) > 1 ? 's' : ''}`
+    case ActivityType.CLOSE:
+      return `Logged ${count || 1} close${(count || 1) > 1 ? 's' : ''}`
+    case ActivityType.REVENUE:
+      return `Logged revenue: $${(revenue || 0).toLocaleString()}`
+    default:
+      return `Logged ${type.toLowerCase()} activity`
+  }
+}
+
+export async function getKpisForRange(preset: string): Promise<any> {
+  const range = getRangeFromPreset(preset)
+  return getKpis(range)
+}
+
+export async function getKpisForCustomRange(from: Date, to: Date): Promise<any> {
+  const range: KpiRange = { from, to }
+  return getKpis(range)
 }
