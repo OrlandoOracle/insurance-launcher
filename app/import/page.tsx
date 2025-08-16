@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Upload, FileText, AlertCircle, CheckCircle, X, 
-  Download, Eye, EyeOff, Users, UserX, Copy
+  Download, Eye, EyeOff, Users, UserX, Copy, AlertTriangle
 } from 'lucide-react'
 import Papa from 'papaparse'
 import { buildFieldMap, describeMappings } from '@/lib/import/autoMap'
@@ -38,6 +38,7 @@ export default function ImportPage() {
   const [allowNoContact, setAllowNoContact] = useState(false)
   const [importing, setImporting] = useState(false)
   const [results, setResults] = useState<any>(null)
+  const [showWarnings, setShowWarnings] = useState(false)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -168,6 +169,24 @@ export default function ImportPage() {
     a.download = 'skipped-contacts.csv'
     a.click()
   }
+  
+  const downloadWarned = () => {
+    if (!results || !results.examples?.warned) return
+    
+    const warned = results.examples.warned.map((issue: any) => ({
+      line: issue.line,
+      reason: issue.reason,
+      ...issue.sample
+    }))
+    
+    const csv = Papa.unparse(warned)
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'warned-rows.csv'
+    a.click()
+  }
 
   const resetImport = () => {
     setFile(null)
@@ -204,6 +223,9 @@ export default function ImportPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-2 text-sm text-muted-foreground">
+                Supports comma/semicolon/tab CSV. Handles embedded commas/quotes. Best saved as UTF-8.
+              </div>
               <div
                 className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors"
                 onDrop={handleDrop}
@@ -424,7 +446,7 @@ export default function ImportPage() {
           <CardContent className="space-y-4">
             {results.success ? (
               <>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold">{results.total}</div>
                     <div className="text-sm text-muted-foreground">Total Rows</div>
@@ -440,6 +462,10 @@ export default function ImportPage() {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">{results.invalid}</div>
                     <div className="text-sm text-muted-foreground">Invalid</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{results.warnings || 0}</div>
+                    <div className="text-sm text-muted-foreground">Warnings</div>
                   </div>
                 </div>
                 
@@ -458,6 +484,35 @@ export default function ImportPage() {
                   </div>
                 )}
                 
+                {results.warnings > 0 && (
+                  <Alert className="border-orange-200 bg-orange-50">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <AlertDescription>
+                      <div className="flex items-center justify-between">
+                        <span>
+                          {results.warnings} rows parsed with warnings (e.g., column count mismatch)
+                        </span>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => setShowWarnings(!showWarnings)}
+                        >
+                          {showWarnings ? 'Hide' : 'Show'} Details
+                        </Button>
+                      </div>
+                      {showWarnings && results.examples?.warned && (
+                        <div className="mt-3 space-y-2 text-xs">
+                          {results.examples.warned.map((issue: any, i: number) => (
+                            <div key={i} className="p-2 bg-white rounded border">
+                              <strong>Line {issue.line}:</strong> {issue.reason}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="flex gap-2">
                   <Link href="/leads" className="flex-1">
                     <Button className="w-full">
@@ -471,7 +526,16 @@ export default function ImportPage() {
                       onClick={downloadSkipped}
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Download Skipped
+                      Skipped
+                    </Button>
+                  )}
+                  {results.warnings > 0 && (
+                    <Button 
+                      variant="outline"
+                      onClick={downloadWarned}
+                    >
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Warnings
                     </Button>
                   )}
                   <Button 
