@@ -51,6 +51,24 @@ export async function GET() {
     console.error('[Health] Error checking database:', e)
   }
   
+  // Check for Lead/Contact table schema
+  let leadsSchemaOk = false
+  try {
+    if (tables.includes('Contact')) {
+      // Check if new Lead fields exist
+      const columns = await prisma.$queryRaw<Array<{ name: string }>>`
+        SELECT name FROM pragma_table_info('Contact')
+      `
+      const columnNames = columns.map(c => c.name)
+      leadsSchemaOk = columnNames.includes('stage') && 
+                      columnNames.includes('lastContacted') &&
+                      columnNames.includes('archivedAt') &&
+                      columnNames.includes('noShowAt')
+    }
+  } catch (e) {
+    console.error('[Health] Error checking Lead schema:', e)
+  }
+
   const health = {
     ok: dbExists && tables.length > 0 && !error,
     database: {
@@ -64,6 +82,9 @@ export async function GET() {
       count: tables.length,
       list: tables,
       records: counts
+    },
+    schema: {
+      leadsSchemaOk
     },
     environment: {
       NODE_ENV: process.env.NODE_ENV,

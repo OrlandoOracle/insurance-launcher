@@ -1,12 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/db'
-import { Contact, Activity, Outcome, ActivityType, Direction, Stage } from '@prisma/client'
+import { Lead, Activity, Outcome, ActivityType, Direction, LeadStage } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 export async function getContacts(
   searchQuery?: string, 
-  stages?: Stage[], 
+  stages?: LeadStage[], 
   tags?: string[],
   noNextAction?: boolean
 ) {
@@ -22,11 +22,11 @@ export async function getContacts(
       { lastName: { contains: searchQuery, mode: 'insensitive' } },
       { email: { contains: searchQuery, mode: 'insensitive' } },
       { phone: { contains: searchQuery } },
-      { howHeard: { contains: searchQuery, mode: 'insensitive' } },
+      { source: { contains: searchQuery, mode: 'insensitive' } },
     ]
   }
   
-  let contacts = await prisma.contact.findMany({
+  let contacts = await prisma.lead.findMany({
     where,
     include: {
       activities: {
@@ -59,7 +59,7 @@ export async function getContacts(
 
 export async function getAllTags(): Promise<string[]> {
   try {
-    const contacts = await prisma.contact.findMany({
+    const contacts = await prisma.lead.findMany({
       select: { tags: true }
     })
     
@@ -81,7 +81,7 @@ export async function getAllTags(): Promise<string[]> {
 }
 
 export async function getContact(id: string) {
-  return prisma.contact.findUnique({
+  return prisma.lead.findUnique({
     where: { id },
     include: {
       activities: {
@@ -99,7 +99,7 @@ export async function createContact(data: {
   lastName: string
   email: string
   phone: string
-  howHeard?: string
+  source?: string
   ghlUrl?: string
   tags?: string[]
 }) {
@@ -113,7 +113,7 @@ export async function createContact(data: {
   }
   
   if (existingWhere.length > 0) {
-    const existing = await prisma.contact.findFirst({
+    const existing = await prisma.lead.findFirst({
       where: { OR: existingWhere }
     })
     
@@ -122,7 +122,7 @@ export async function createContact(data: {
     }
   }
   
-  const contact = await prisma.contact.create({
+  const contact = await prisma.lead.create({
     data: {
       ...data,
       tags: JSON.stringify(data.tags || [])
@@ -147,17 +147,17 @@ export async function updateContact(id: string, data: Partial<{
   lastName: string
   email: string
   phone: string
-  howHeard: string
+  source: string
   ghlUrl: string
   tags: string[]
-  stage: Stage
+  stage: LeadStage
 }>) {
   const updateData: any = { ...data }
   if (data.tags) {
     updateData.tags = JSON.stringify(data.tags)
   }
   
-  const contact = await prisma.contact.update({
+  const contact = await prisma.lead.update({
     where: { id },
     data: updateData
   })
@@ -168,7 +168,7 @@ export async function updateContact(id: string, data: Partial<{
 }
 
 export async function deleteContact(id: string) {
-  await prisma.contact.delete({
+  await prisma.lead.delete({
     where: { id }
   })
   
@@ -235,7 +235,7 @@ export async function importContacts(contacts: Array<{
   lastName: string
   email: string
   phone: string
-  howHeard?: string
+  source?: string
 }>) {
   const results = {
     imported: 0,
@@ -246,7 +246,7 @@ export async function importContacts(contacts: Array<{
   for (const contact of contacts) {
     try {
       // Check for duplicates
-      const existing = await prisma.contact.findFirst({
+      const existing = await prisma.lead.findFirst({
         where: {
           OR: [
             { email: contact.email },
@@ -261,7 +261,7 @@ export async function importContacts(contacts: Array<{
       }
       
       // Create new contact
-      const newContact = await prisma.contact.create({
+      const newContact = await prisma.lead.create({
         data: {
           ...contact,
           tags: '[]'

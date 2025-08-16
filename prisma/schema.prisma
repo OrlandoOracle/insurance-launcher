@@ -7,27 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Contact {
-  id        String     @id @default(cuid())
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+// Lead model (maps to Contact table for backward compatibility)
+model Lead {
+  id             String     @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  source         String?      // "How heard"
+  stage          LeadStage  @default(NEW)
+  lastContacted  DateTime?
+  archivedAt     DateTime?
+  noShowAt       DateTime?
   
-  firstName String
-  lastName  String
-  email     String
-  phone     String
-  howHeard  String?
+  // existing fields
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  ghlUrl         String?
+  tags           String     @default("[]") // JSON array stored as string
   
-  stage     Stage      @default(NEW_LEAD)
-  ghlUrl    String?
-  tags      String     @default("[]") // JSON array stored as string
-  
-  activities Activity[]
-  tasks      Task[]
+  // relations
+  activities     Activity[]
+  tasks          Task[]
   
   @@index([lastName])
   @@index([phone])
   @@index([email])
+  @@map("Contact") // Map to existing Contact table
 }
 
 model Activity {
@@ -36,7 +42,7 @@ model Activity {
   date      DateTime @default(now())
   
   contactId String?
-  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  lead      Lead?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   
   type      ActivityType
   summary   String
@@ -62,7 +68,7 @@ model Task {
   updatedAt DateTime @updatedAt
   
   contactId String?
-  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  lead      Lead?    @relation(fields: [contactId], references: [id], onDelete: Cascade)
   
   title     String
   dueAt     DateTime?
@@ -101,7 +107,7 @@ model ImportBatch {
 model DiscoverySession {
   id            String   @id @default(cuid())
   sessionId     String   @unique
-  clientId      String?  // Link to Contact.id
+  clientId      String?  // Link to Lead.id
   clientName    String?
   primaryDob    String?
   zip           String?
@@ -118,15 +124,14 @@ model DiscoverySession {
   @@index([createdAt])
 }
 
-enum Stage {
-  NEW_LEAD
-  DISCOVERY
-  QUOTE
-  PRESENTATION
-  APP
-  SOLD
-  ONBOARD
-  RENEWAL
+enum LeadStage {
+  NEW
+  WORKING
+  QUALIFIED
+  BOOKED
+  NO_SHOW
+  NURTURE
+  CLOSED
 }
 
 enum ActivityType {

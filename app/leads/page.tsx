@@ -17,14 +17,13 @@ import { toast } from 'sonner'
 import Fuse from 'fuse.js'
 
 const STAGE_OPTIONS = [
-  { value: 'NEW_LEAD', label: 'New Lead' },
-  { value: 'DISCOVERY', label: 'Discovery' },
-  { value: 'QUOTE', label: 'Quote' },
-  { value: 'PRESENTATION', label: 'Presentation' },
-  { value: 'APP', label: 'Application' },
-  { value: 'SOLD', label: 'Sold' },
-  { value: 'ONBOARD', label: 'Onboarding' },
-  { value: 'RENEWAL', label: 'Renewal' }
+  { value: 'NEW', label: 'New' },
+  { value: 'WORKING', label: 'Working' },
+  { value: 'QUALIFIED', label: 'Qualified' },
+  { value: 'BOOKED', label: 'Booked' },
+  { value: 'NO_SHOW', label: 'No Show' },
+  { value: 'NURTURE', label: 'Nurture' },
+  { value: 'CLOSED', label: 'Closed' }
 ]
 
 export default function LeadsPage() {
@@ -324,7 +323,7 @@ export default function LeadsPage() {
                           </a>
                         )}
                       </TableCell>
-                      <TableCell>{contact.howHeard || '-'}</TableCell>
+                      <TableCell>{contact.source || contact.howHeard || '-'}</TableCell>
                       <TableCell>
                         <StageBadge 
                           contactId={contact.id} 
