@@ -125,17 +125,29 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
 
   return (
     <>
-      <div className="container mx-auto px-4 py-6 md:py-8 space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Leads</h1>
-          <Button onClick={() => setShowIntakeForm(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Lead
-          </Button>
+      <section className="h-full flex flex-col">
+        {/* Page header (non-scrolling) */}
+        <div className="shrink-0 border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold">Leads</h1>
+              <Button onClick={() => setShowIntakeForm(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Lead
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader className="pb-4">
+        {/* Scrollable content area */}
+        <div
+          className="min-h-0 grow overflow-auto"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+          data-scroll="leads"
+        >
+          <div className="container mx-auto px-4 py-4">
+            <Card className="overflow-visible">
+              <CardHeader className="pb-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <CardTitle className="text-xl">All Leads</CardTitle>
               <div className="flex flex-wrap items-center gap-3">
@@ -178,8 +190,8 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
                 </Select>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+              </CardHeader>
+              <CardContent className="overflow-visible">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-muted-foreground">Loading leads...</div>
@@ -205,7 +217,7 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="min-w-full">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
@@ -302,9 +314,11 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
                 </Table>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
 
       <LeadIntakeForm 
         open={showIntakeForm} 

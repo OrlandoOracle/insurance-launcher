@@ -5,7 +5,7 @@ export default async function LeadsPage() {
   // Fetch initial data on the server
   const leads = await prisma.lead.findMany({
     orderBy: { createdAt: 'desc' },
-    take: 50,
+    take: 100,  // Increased limit for scrolling test
     include: {
       activities: {
         orderBy: { date: 'desc' },
@@ -33,5 +33,9 @@ export default async function LeadsPage() {
     activities: lead.activities
   }))
 
-  return <LeadsClient initialContacts={contacts} />
+  return (
+    <section className="h-full flex flex-col">
+      <LeadsClient initialContacts={contacts} />
+    </section>
+  )
 }
