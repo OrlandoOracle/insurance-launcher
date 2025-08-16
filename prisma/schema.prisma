@@ -78,11 +78,16 @@ model Task {
   label    String?
   stage    TaskStage    @default(NEW)
 
+  // Archive fields
+  completedAt DateTime?
+  archivedAt  DateTime?
+
   @@index([contactId])
   @@index([status])
   @@index([dueAt])
   @@index([priority])
   @@index([stage])
+  @@index([archivedAt])
 }
 
 model Setting {

@@ -34,6 +34,16 @@ export async function POST(req: Request) {
     if (patch.stage) {
       data.stage = patch.stage;
     }
+    
+    // Auto-archive/unarchive based on status
+    if (patch.status === 'DONE') {
+      const now = new Date();
+      data.archivedAt = now;
+      data.completedAt = data.completedAt ?? now;
+    } else if (patch.status === 'OPEN') {
+      data.archivedAt = null;
+      data.completedAt = null;
+    }
 
     // Count matching records before update
     const matched = await prisma.task.count({ where });
@@ -59,6 +69,11 @@ function filtersToWhere(filters: TaskFilters | undefined): Prisma.TaskWhereInput
   const where: Prisma.TaskWhereInput = {};
   
   if (!filters) return where;
+  
+  // Exclude archived tasks by default unless explicitly requested
+  if (!filters.showArchived) {
+    where.archivedAt = null;
+  }
   
   // Status filter
   if (filters.status?.length) {

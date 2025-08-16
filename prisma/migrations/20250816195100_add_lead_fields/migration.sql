@@ -1,8 +1,9 @@
 -- AlterTable
 -- Add new columns for Lead model (only missing ones)
-ALTER TABLE "Contact" ADD COLUMN "lastContacted" DATETIME;
-ALTER TABLE "Contact" ADD COLUMN "archivedAt" DATETIME;
-ALTER TABLE "Contact" ADD COLUMN "noShowAt" DATETIME;
+-- Note: columns might already exist from prior migrations
+-- ALTER TABLE "Contact" ADD COLUMN "lastContacted" DATETIME;
+-- ALTER TABLE "Contact" ADD COLUMN "archivedAt" DATETIME;
+-- ALTER TABLE "Contact" ADD COLUMN "noShowAt" DATETIME;
 
 -- Update stage values to new LeadStage enum values
 UPDATE "Contact" SET "stage" = 'NEW' WHERE "stage" = 'NEW_LEAD';

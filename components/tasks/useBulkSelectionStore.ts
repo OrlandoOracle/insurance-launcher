@@ -10,6 +10,7 @@ export type TaskFilters = {
   dueFrom?: string;
   dueTo?: string;
   label?: string;
+  showArchived?: boolean;
 };
 
 export type TaskSort = {

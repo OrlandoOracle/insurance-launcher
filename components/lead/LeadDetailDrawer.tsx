@@ -14,9 +14,9 @@ import {
   Plus, Check, Clock, MessageSquare, DollarSign,
   PhoneCall, Target, TrendingUp
 } from 'lucide-react'
-import { Contact, Task, Activity, Stage, TaskStatus, ActivityType } from '@prisma/client'
+import { Lead, Task, Activity, LeadStage, TaskStatus, ActivityType } from '@prisma/client'
 import { format } from 'date-fns'
-import { updateContactStage } from '@/app/actions/contacts'
+import { updateContact } from '@/app/actions/contacts'
 import { createTask, updateTask } from '@/app/actions/tasks'
 import { toast } from 'sonner'
 
@@ -26,7 +26,7 @@ interface LeadDetailDrawerProps {
   onOpenChange: (open: boolean) => void
 }
 
-interface ContactWithRelations extends Contact {
+interface ContactWithRelations extends Lead {
   tasks: Task[]
   activities: Activity[]
 }
@@ -63,10 +63,10 @@ export function LeadDetailDrawer({ contactId, open, onOpenChange }: LeadDetailDr
     }
   }
 
-  const handleStageChange = async (newStage: Stage) => {
+  const handleStageChange = async (newStage: LeadStage) => {
     if (!contact) return
     
-    const result = await updateContactStage(contact.id, newStage)
+    const result = await updateContact(contact.id, { stage: newStage })
     if (result.success) {
       setContact({ ...contact, stage: newStage })
       toast.success('Stage updated')

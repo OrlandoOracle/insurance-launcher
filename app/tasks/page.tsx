@@ -34,6 +34,7 @@ export default function TasksPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [searchQuery, setSearchQuery] = useState('')
   const [totalCount, setTotalCount] = useState(0)
+  const [view, setView] = useState<'active' | 'archived'>('active')
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     dueAt: '',
@@ -57,12 +58,13 @@ export default function TasksPage() {
 
   // Build current filters
   const filters: TaskFilters = useMemo(() => ({
-    q: searchQuery || undefined
-  }), [searchQuery])
+    q: searchQuery || undefined,
+    showArchived: view === 'archived'
+  }), [searchQuery, view])
 
   useEffect(() => {
     loadTasks()
-  }, [searchQuery])
+  }, [searchQuery, view])
 
   useEffect(() => {
     // Update scope in store
@@ -340,6 +342,22 @@ export default function TasksPage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-bold">Tasks</h1>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={view === 'active' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setView('active')}
+                >
+                  Active
+                </Button>
+                <Button 
+                  variant={view === 'archived' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setView('archived')}
+                >
+                  Archived
+                </Button>
+              </div>
               <Input
                 placeholder="Search tasks..."
                 value={searchQuery}
@@ -359,6 +377,7 @@ export default function TasksPage() {
       <BulkToolbar 
         onAction={handleBulkAction}
         totalTasks={totalCount}
+        isArchiveView={view === 'archived'}
       />
 
       {/* Scrollable content area */}
@@ -459,6 +478,9 @@ export default function TasksPage() {
                           <SortIcon field="status" />
                         </button>
                       </TableHead>
+                      {view === 'archived' && (
+                        <TableHead>Archived</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -524,6 +546,11 @@ export default function TasksPage() {
                           <TableCell>
                             {getStatusBadge(task)}
                           </TableCell>
+                          {view === 'archived' && (
+                            <TableCell className="text-muted-foreground">
+                              {task.archivedAt ? format(new Date(task.archivedAt), 'PP p') : '-'}
+                            </TableCell>
+                          )}
                         </TableRow>
                       )
                     })}

@@ -10,9 +10,15 @@ export async function getTasks(filters?: {
   stage?: string[]
   priority?: string[]
   q?: string
+  showArchived?: boolean
 }) {
   try {
     const where: any = {}
+    
+    // Exclude archived tasks by default
+    if (!filters?.showArchived) {
+      where.archivedAt = null
+    }
     
     if (filters?.status) {
       if (Array.isArray(filters.status)) {
@@ -46,11 +52,13 @@ export async function getTasks(filters?: {
       include: {
         contact: true
       },
-      orderBy: [
-        { status: 'asc' },
-        { dueAt: 'asc' },
-        { createdAt: 'desc' }
-      ]
+      orderBy: filters?.showArchived 
+        ? [{ archivedAt: 'desc' }]  // Show newest archived first
+        : [
+            { status: 'asc' },
+            { dueAt: 'asc' },
+            { createdAt: 'desc' }
+          ]
     })
   } catch (error: any) {
     if (error.code === 'P2021' || error.message?.includes('does not exist')) {
@@ -68,9 +76,15 @@ export async function getTasksCount(filters?: {
   stage?: string[]
   priority?: string[]
   q?: string
+  showArchived?: boolean
 }) {
   try {
     const where: any = {}
+    
+    // Exclude archived tasks by default
+    if (!filters?.showArchived) {
+      where.archivedAt = null
+    }
     
     if (filters?.status) {
       if (Array.isArray(filters.status)) {
@@ -157,10 +171,23 @@ export async function updateTask(id: string, data: Partial<{
   title: string
   dueAt: Date | null
   status: TaskStatus
+  completedAt?: Date | null
+  archivedAt?: Date | null
 }>) {
+  // Auto-archive/unarchive based on status
+  const finalData = { ...data }
+  if (data.status === 'DONE') {
+    const now = new Date()
+    finalData.archivedAt = now
+    finalData.completedAt = finalData.completedAt ?? now
+  } else if (data.status === 'OPEN') {
+    finalData.archivedAt = null
+    finalData.completedAt = null
+  }
+  
   const task = await prisma.task.update({
     where: { id },
-    data
+    data: finalData
   })
   
   revalidatePath('/tasks')

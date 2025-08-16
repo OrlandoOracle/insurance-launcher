@@ -49,9 +49,10 @@ export type BulkAction =
 interface BulkToolbarProps {
   onAction: (action: BulkAction) => Promise<void>;
   totalTasks?: number;
+  isArchiveView?: boolean;
 }
 
-export function BulkToolbar({ onAction, totalTasks }: BulkToolbarProps) {
+export function BulkToolbar({ onAction, totalTasks, isArchiveView }: BulkToolbarProps) {
   const { 
     mode, 
     allMatchingSelected, 
@@ -117,25 +118,39 @@ export function BulkToolbar({ onAction, totalTasks }: BulkToolbarProps) {
           </span>
           
           <div className="flex items-center gap-1 border-l pl-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleAction({ type: 'status', value: 'DONE' })}
-              title="Mark as Done (D)"
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Done
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleAction({ type: 'status', value: 'OPEN' })}
-              title="Mark as Open (O)"
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              Open
-            </Button>
+            {isArchiveView ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleAction({ type: 'status', value: 'OPEN' })}
+                title="Restore tasks (O)"
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                Restore
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleAction({ type: 'status', value: 'DONE' })}
+                  title="Mark as Done (D)"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Done
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleAction({ type: 'status', value: 'OPEN' })}
+                  title="Mark as Open (O)"
+                >
+                  <Clock className="h-4 w-4 mr-1" />
+                  Open
+                </Button>
+              </>
+            )}
             
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>

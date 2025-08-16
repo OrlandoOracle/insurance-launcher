@@ -4,25 +4,35 @@ import { prisma } from '@/lib/db'
 import { Lead, Activity, Outcome, ActivityType, Direction, LeadStage } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
-export async function getContacts(
-  searchQuery?: string, 
-  stages?: LeadStage[], 
-  tags?: string[],
+export async function getContacts(filters?: {
+  search?: string
+  stage?: string
+  source?: string
+  stages?: LeadStage[]
+  tags?: string[]
   noNextAction?: boolean
-) {
+}) {
   const where: any = {}
   
-  if (stages && stages.length > 0) {
-    where.stage = { in: stages }
+  if (filters?.stage && filters.stage !== 'all') {
+    where.stage = filters.stage
   }
   
-  if (searchQuery) {
+  if (filters?.stages && filters.stages.length > 0) {
+    where.stage = { in: filters.stages }
+  }
+  
+  if (filters?.source && filters.source !== 'all') {
+    where.source = filters.source
+  }
+  
+  if (filters?.search) {
     where.OR = [
-      { firstName: { contains: searchQuery, mode: 'insensitive' } },
-      { lastName: { contains: searchQuery, mode: 'insensitive' } },
-      { email: { contains: searchQuery, mode: 'insensitive' } },
-      { phone: { contains: searchQuery } },
-      { source: { contains: searchQuery, mode: 'insensitive' } },
+      { firstName: { contains: filters.search, mode: 'insensitive' } },
+      { lastName: { contains: filters.search, mode: 'insensitive' } },
+      { email: { contains: filters.search, mode: 'insensitive' } },
+      { phone: { contains: filters.search } },
+      { source: { contains: filters.search, mode: 'insensitive' } },
     ]
   }
   
@@ -42,15 +52,15 @@ export async function getContacts(
   })
   
   // Filter by tags if specified
-  if (tags && tags.length > 0) {
+  if (filters?.tags && filters.tags.length > 0) {
     contacts = contacts.filter(contact => {
       const contactTags = JSON.parse(contact.tags || '[]')
-      return tags.some(tag => contactTags.includes(tag))
+      return filters.tags!.some(tag => contactTags.includes(tag))
     })
   }
   
   // Filter by no next action if specified
-  if (noNextAction) {
+  if (filters?.noNextAction) {
     contacts = contacts.filter(contact => contact.tasks.length === 0)
   }
   
