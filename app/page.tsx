@@ -11,6 +11,8 @@ import { getSettings } from "@/app/actions/settings"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Upload, Phone, Calendar, AlertCircle } from "lucide-react"
 import { LeadIntakeForm } from "@/components/lead-intake-form"
+import { GlobalHotkeys } from "@/components/global-hotkeys"
+import { TaskReminders } from "@/components/task-reminders"
 
 export default function DashboardPage() {
   const [showIntakeForm, setShowIntakeForm] = useState(false)
@@ -42,6 +44,8 @@ export default function DashboardPage() {
   
   return (
     <>
+    <GlobalHotkeys onNewLead={() => setShowIntakeForm(true)} />
+    <TaskReminders />
     <div className="space-y-6">
       {overdueTasks.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">

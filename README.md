@@ -34,13 +34,17 @@ Create a `.env` file (copy from `.env.example`):
 cp .env.example .env
 ```
 
-Edit `.env` to set your data directory:
+Edit `.env` to set your data directory and GHL configuration:
 ```env
 # For external drive (recommended)
 DATA_DIR=/Volumes/YourDrive/InsuranceData
 
 # Or use local directory (default)
 DATA_DIR=./data
+
+# GoHighLevel integration (optional)
+GHL_OPPS_URL="https://app.gohighlevel.com/v2/location/YOUR_LOCATION/opportunities/list"
+CHROME_PROFILE_DIR="Default"  # See Chrome Profile Setup below
 ```
 
 ### 3. Database Setup (IMPORTANT)
@@ -143,6 +147,43 @@ To store data on an external drive:
 4. Restart the app
 
 ### GoHighLevel Integration
+
+#### Chrome Profile Setup (macOS)
+
+The app can open GHL in a specific Chrome profile to keep your work accounts separate:
+
+1. **Find your Chrome profile name:**
+   - Open Chrome and go to `chrome://version/`
+   - Look for "Profile Path" (e.g., `/Users/you/Library/Application Support/Google/Chrome/Default`)
+   - The **last folder name** is your profile (e.g., "Default", "Profile 1", "Profile 2")
+   - Note: Use only the folder NAME, not the full path
+
+2. **Configure in Settings:**
+   - Go to Settings in the app
+   - Click "Test Open" to see available profiles
+   - Click on a detected profile button to apply it
+   - Or manually enter the profile name (e.g., "Default", "Profile 1")
+   - Save settings
+
+3. **How it works:**
+   - Click "Open GHL" → URL opens immediately in a new tab
+   - App also tries to launch Chrome with your specific profile
+   - If profile launch succeeds, Chrome comes to front with correct profile
+   - If profile launch fails, you still have the tab that opened
+
+4. **Using the integration:**
+   - Click "New Lead" or press `N`
+   - Click "Open GHL" button - tab opens immediately
+   - Copy contact info from GHL using your Chrome extension
+   - Click "Paste GHL" button - fields auto-fill
+   - If duplicate found, choose to open existing or continue
+
+5. **Troubleshooting:**
+   - If wrong profile opens: Go to Settings → Test Open → Click correct profile
+   - If Chrome doesn't come to front: Check System Preferences → Security & Privacy → Accessibility
+   - Console shows detailed diagnostics with emojis for easy debugging
+
+#### Manual Contact Linking
 
 1. Find contact in GoHighLevel
 2. Copy the contact's URL

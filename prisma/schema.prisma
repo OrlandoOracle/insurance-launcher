@@ -66,13 +66,15 @@ model Task {
 }
 
 model Setting {
-  id             String   @id @default("singleton")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default("singleton")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   
-  kixieUrl       String   @default("https://app.kixie.com")
-  icsCalendarUrl String?
-  dataDir        String   @default("./data")
+  kixieUrl         String   @default("https://app.kixie.com")
+  icsCalendarUrl   String?
+  dataDir          String   @default("./data")
+  ghlOppsUrl       String?
+  chromeProfileDir String?
 }
 
 enum Stage {

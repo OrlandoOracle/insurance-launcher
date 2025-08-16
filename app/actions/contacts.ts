@@ -4,11 +4,16 @@ import { prisma } from '@/lib/db'
 import { Contact, Activity, Outcome, ActivityType, Direction, Stage } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
-export async function getContacts(searchQuery?: string, stage?: Stage) {
+export async function getContacts(
+  searchQuery?: string, 
+  stages?: Stage[], 
+  tags?: string[],
+  noNextAction?: boolean
+) {
   const where: any = {}
   
-  if (stage) {
-    where.stage = stage
+  if (stages && stages.length > 0) {
+    where.stage = { in: stages }
   }
   
   if (searchQuery) {
@@ -21,7 +26,7 @@ export async function getContacts(searchQuery?: string, stage?: Stage) {
     ]
   }
   
-  return prisma.contact.findMany({
+  let contacts = await prisma.contact.findMany({
     where,
     include: {
       activities: {
@@ -30,12 +35,49 @@ export async function getContacts(searchQuery?: string, stage?: Stage) {
       },
       tasks: {
         where: { status: 'OPEN' },
-        orderBy: { dueAt: 'asc' },
-        take: 1
+        orderBy: { dueAt: 'asc' }
       }
     },
     orderBy: { createdAt: 'desc' }
   })
+  
+  // Filter by tags if specified
+  if (tags && tags.length > 0) {
+    contacts = contacts.filter(contact => {
+      const contactTags = JSON.parse(contact.tags || '[]')
+      return tags.some(tag => contactTags.includes(tag))
+    })
+  }
+  
+  // Filter by no next action if specified
+  if (noNextAction) {
+    contacts = contacts.filter(contact => contact.tasks.length === 0)
+  }
+  
+  return contacts
+}
+
+export async function getAllTags(): Promise<string[]> {
+  try {
+    const contacts = await prisma.contact.findMany({
+      select: { tags: true }
+    })
+    
+    const tagSet = new Set<string>()
+    contacts.forEach(contact => {
+      const tags = JSON.parse(contact.tags || '[]')
+      tags.forEach((tag: string) => tagSet.add(tag))
+    })
+    
+    return Array.from(tagSet).sort()
+  } catch (error: any) {
+    if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+      console.warn('[Contacts:Tags] Table missing, returning empty array')
+      return []
+    }
+    console.error('[Contacts:Tags] Error fetching tags:', error)
+    throw error
+  }
 }
 
 export async function getContact(id: string) {

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
+import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <main className="container mx-auto py-6 px-4">
           {children}
         </main>
+        <Toaster />
       </body>
     </html>
   );

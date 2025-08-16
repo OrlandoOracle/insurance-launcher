@@ -23,6 +23,10 @@ export async function POST(request: NextRequest) {
   try {
     const contacts: ImportContact[] = await request.json()
     
+    // Generate batch tag with current year-month (UTC)
+    const now = new Date()
+    const batchTag = `batch:${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+    
     let createdCount = 0
     let skippedCount = 0
     let errorCount = 0
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
           continue
         }
         
-        // Create the contact
+        // Create the contact with batch tag
         const newContact = await prisma.contact.create({
           data: {
             firstName: contact.firstName.trim(),
@@ -76,16 +80,16 @@ export async function POST(request: NextRequest) {
             phone: normalizedPhone || '',
             howHeard: contact.howHeard?.trim() || null,
             stage: 'NEW_LEAD',
-            tags: '[]'
+            tags: JSON.stringify([batchTag])
           }
         })
         
-        // Add import activity
+        // Add import activity with batch tag
         await prisma.activity.create({
           data: {
             contactId: newContact.id,
             type: 'NOTE',
-            summary: 'Imported via CSV'
+            summary: `Imported via CSV (${batchTag})`
           }
         })
         
@@ -117,7 +121,8 @@ export async function POST(request: NextRequest) {
       skippedCount,
       errorCount,
       errors: errors.slice(0, 10), // Limit error messages
-      totalProcessed: contacts.length
+      totalProcessed: contacts.length,
+      batchTag
     })
   } catch (error) {
     console.error('[Import] Error:', error)

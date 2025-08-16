@@ -29,9 +29,10 @@ export async function getTasks(status?: TaskStatus, contactId?: string) {
     })
   } catch (error: any) {
     if (error.code === 'P2021' || error.message?.includes('does not exist')) {
-      console.warn('[Tasks] Table missing, returning empty array')
+      console.warn('[Tasks] Table missing, returning empty array. Run: npm run db:ensure')
       return []
     }
+    console.error('[Tasks] Error fetching tasks:', error)
     throw error
   }
 }
@@ -54,9 +55,10 @@ export async function getOverdueTasks() {
     })
   } catch (error: any) {
     if (error.code === 'P2021' || error.message?.includes('does not exist')) {
-      console.warn('[Tasks] Table missing, returning empty array')
+      console.warn('[Tasks:Overdue] Table missing, returning empty array. Run: npm run db:ensure')
       return []
     }
+    console.error('[Tasks:Overdue] Error fetching overdue tasks:', error)
     throw error
   }
 }
@@ -114,7 +116,31 @@ export async function deleteTask(id: string) {
 }
 
 export async function markTaskComplete(id: string) {
-  return updateTask(id, { status: 'DONE' })
+  const task = await prisma.task.findUnique({
+    where: { id },
+    include: { contact: true }
+  })
+  
+  if (!task) {
+    throw new Error('Task not found')
+  }
+  
+  // Mark task as done
+  const updatedTask = await updateTask(id, { status: 'DONE' })
+  
+  // Create activity log
+  if (task.contactId) {
+    await prisma.activity.create({
+      data: {
+        contactId: task.contactId,
+        type: 'TASK',
+        summary: `Task completed: ${task.title}`,
+        details: task.dueAt ? `Was due: ${task.dueAt.toISOString()}` : undefined
+      }
+    })
+  }
+  
+  return updatedTask
 }
 
 export async function markTaskOpen(id: string) {

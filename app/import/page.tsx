@@ -133,8 +133,10 @@ export default function ImportPage() {
                   className="hidden"
                   id="csv-upload"
                 />
-                <label htmlFor="csv-upload">
-                  <Button as="span" variant="outline">Choose File</Button>
+                <label htmlFor="csv-upload" className="inline-block">
+                  <div className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
+                    Choose File
+                  </div>
                 </label>
                 {file && (
                   <p className="mt-4 text-sm text-muted-foreground">
@@ -258,10 +260,15 @@ export default function ImportPage() {
                   )}
                   
                   <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-sm text-muted-foreground mb-2">
                       Total processed: {results.totalProcessed} contacts
                     </p>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    {results.batchTag && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        ✓ Tagged with: <code className="px-2 py-1 bg-gray-100 rounded">{results.batchTag}</code>
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
                       ✓ Follow-up tasks created for all new leads
                     </p>
                   </div>

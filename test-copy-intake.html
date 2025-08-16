@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Copy Intake Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            background: #2563EB;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #1d4ed8;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            min-height: 200px;
+        }
+        .info {
+            background: #dbeafe;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Copy Intake Button Test</h1>
+    
+    <div class="info">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Open a lead detail page in the app (http://localhost:3000/leads/[id])</li>
+            <li>Look for the Copy Intake button in the toolbar (clipboard icon)</li>
+            <li>Hover over it - it should turn AFH blue (#2563EB)</li>
+            <li>Click it or press Shift+C</li>
+            <li>The intake data should be copied to clipboard</li>
+            <li>Click "Paste from Clipboard" below to verify</li>
+        </ol>
+    </div>
+
+    <button class="button" onclick="testCopy()">Test Copy Format</button>
+    <button class="button" onclick="pasteFromClipboard()">Paste from Clipboard</button>
+    <button class="button" onclick="clearOutput()">Clear</button>
+
+    <div id="output"></div>
+
+    <script>
+        function testCopy() {
+            const testData = `LEAD INTAKE DATA
+================
+Name: John Doe
+Email: john@example.com
+Phone: 555-1234567
+Source: Website
+Stage: NEW_LEAD
+Tags: hot-lead, batch:2025-01
+GHL URL: https://app.gohighlevel.com/v2/location/abc/contacts/detail/123
+Created: January 15, 2025
+================`;
+            
+            navigator.clipboard.writeText(testData).then(() => {
+                document.getElementById('output').textContent = 'Test data copied! Now paste it back to verify.';
+            });
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('output').textContent = text;
+                
+                // Verify format
+                if (text.includes('LEAD INTAKE DATA') && text.includes('================')) {
+                    console.log('✅ Format looks correct!');
+                }
+            } catch (err) {
+                document.getElementById('output').textContent = 'Failed to read clipboard: ' + err;
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+
+        // Test keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.key === 'C') {
+                console.log('Shift+C detected - this would trigger Copy Intake in the app');
+                document.getElementById('output').textContent = 'Shift+C pressed - shortcut detected!';
+            }
+        });
+    </script>
+</body>
+</html>

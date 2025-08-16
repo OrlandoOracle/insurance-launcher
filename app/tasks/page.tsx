@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { TaskReminders } from '@/components/task-reminders'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -142,6 +143,8 @@ export default function TasksPage() {
   }
 
   return (
+    <>
+    <TaskReminders />
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Tasks</h1>
@@ -267,5 +270,6 @@ export default function TasksPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   )
 }
