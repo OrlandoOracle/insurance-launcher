@@ -6,18 +6,26 @@ import { Button } from "@/components/ui/button"
 import { KPICards } from "@/components/kpi-cards"
 import { TaskList } from "@/components/task-list"
 import { getKPIs } from "@/app/actions/kpis"
-import { getTasks, getOverdueTasks } from "@/app/actions/tasks"
+import { getTasks, getOverdueTasks, createTask } from "@/app/actions/tasks"
 import { getSettings } from "@/app/actions/settings"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Plus, Upload, Phone, Calendar, AlertCircle } from "lucide-react"
 import { LeadIntakeForm } from "@/components/lead-intake-form"
 import { GlobalHotkeys } from "@/components/global-hotkeys"
 import { TaskReminders } from "@/components/task-reminders"
+import { toast } from "sonner"
 
 export default function DashboardPage() {
   const [showIntakeForm, setShowIntakeForm] = useState(false)
+  const [showNewTask, setShowNewTask] = useState(false)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [newTaskData, setNewTaskData] = useState({
+    title: '',
+    dueAt: ''
+  })
 
   useEffect(() => {
     loadData()
@@ -34,6 +42,23 @@ export default function DashboardPage() {
     
     setData({ todayKPIs, weekKPIs, tasks, overdueTasks, settings })
     setLoading(false)
+  }
+
+  const handleCreateTask = async () => {
+    try {
+      await createTask({
+        title: newTaskData.title,
+        dueAt: newTaskData.dueAt ? new Date(newTaskData.dueAt) : undefined
+      })
+      
+      toast.success('Task created')
+      setNewTaskData({ title: '', dueAt: '' })
+      setShowNewTask(false)
+      loadData() // Reload to show the new task
+    } catch (error) {
+      console.error('Error creating task:', error)
+      toast.error('Failed to create task')
+    }
   }
 
   if (loading || !data) {
@@ -70,7 +95,10 @@ export default function DashboardPage() {
       </div>
       
       <div className="grid gap-6 md:grid-cols-2">
-        <TaskList tasks={tasks} />
+        <TaskList 
+          tasks={tasks} 
+          onAddTask={() => setShowNewTask(true)}
+        />
         
         <Card>
           <CardHeader>
@@ -122,6 +150,42 @@ export default function DashboardPage() {
         loadData()
       }} 
     />
+
+    {/* New Task Dialog */}
+    <Dialog open={showNewTask} onOpenChange={setShowNewTask}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Task</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Task Title</label>
+            <Input
+              placeholder="Enter task title..."
+              value={newTaskData.title}
+              onChange={(e) => setNewTaskData({ ...newTaskData, title: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTaskData.title) {
+                  handleCreateTask()
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Due Date (Optional)</label>
+            <Input
+              type="datetime-local"
+              value={newTaskData.dueAt}
+              onChange={(e) => setNewTaskData({ ...newTaskData, dueAt: e.target.value })}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowNewTask(false)}>Cancel</Button>
+          <Button onClick={handleCreateTask} disabled={!newTaskData.title}>Create Task</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   )
 }

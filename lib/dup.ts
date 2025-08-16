@@ -84,3 +84,56 @@ export async function isDuplicate(
   
   return true;
 }
+
+/**
+ * Check if a contact exists by email (case-insensitive) or phone digits
+ */
+export async function contactExists({ 
+  email, 
+  phoneDigits 
+}: { 
+  email?: string; 
+  phoneDigits?: string 
+}): Promise<boolean> {
+  if (!email && !phoneDigits) {
+    return false;
+  }
+
+  const conditions: any[] = [];
+  
+  if (email) {
+    // Case-insensitive email match
+    conditions.push({ 
+      email: {
+        equals: normalizeEmail(email),
+        mode: 'insensitive'
+      }
+    });
+  }
+  
+  if (phoneDigits && phoneDigits.length >= 10) {
+    // Match by phone digits
+    conditions.push({ 
+      phone: { 
+        contains: phoneDigits 
+      } 
+    });
+  }
+
+  if (conditions.length === 0) {
+    return false;
+  }
+
+  try {
+    const count = await prisma.contact.count({
+      where: {
+        OR: conditions
+      }
+    });
+    
+    return count > 0;
+  } catch (error) {
+    console.error('[dup] Error checking contact existence:', error);
+    return false;
+  }
+}

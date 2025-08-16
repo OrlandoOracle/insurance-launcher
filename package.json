@@ -15,6 +15,7 @@
     "db:ensure": "node scripts/ensure-db.js",
     "db:studio": "prisma studio",
     "seed": "node prisma/seed.mjs",
+    "clean:csv": "node scripts/clean-carrier-csv.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
     "@radix-ui/react-tooltip": "^1.2.8",
@@ -35,6 +37,8 @@
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "csv-parse": "^6.1.0",
+    "csv-stringify": "^6.6.0",
     "date-fns": "^4.1.0",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.539.0",
