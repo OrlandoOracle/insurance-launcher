@@ -47,7 +47,7 @@ const STAGE_LABELS = {
 const ACTIVE_STAGES = ['NEW', 'WORKING', 'QUALIFIED', 'BOOKED', 'NO_SHOW', 'NURTURE', 'CLOSED'] as const
 
 interface StageBadgeProps {
-  contactId: string
+  contactId?: string
   stage: keyof typeof STAGE_COLORS
   onUpdate?: () => void
 }
@@ -58,7 +58,7 @@ export function StageBadge({ contactId, stage, onUpdate }: StageBadgeProps) {
   const [currentStage, setCurrentStage] = useState(stage)
 
   const handleStageChange = async (newStage: keyof typeof STAGE_COLORS) => {
-    if (newStage === currentStage) {
+    if (newStage === currentStage || !contactId) {
       setIsOpen(false)
       return
     }
@@ -76,6 +76,15 @@ export function StageBadge({ contactId, stage, onUpdate }: StageBadgeProps) {
     }
   }
 
+  // If no contactId, render as a simple badge without dropdown
+  if (!contactId) {
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STAGE_COLORS[currentStage] || STAGE_COLORS.NEW}`}>
+        {STAGE_LABELS[currentStage] || 'New'}
+      </span>
+    )
+  }
+
   return (
     <div className="relative inline-block">
       <button
@@ -90,10 +99,10 @@ export function StageBadge({ contactId, stage, onUpdate }: StageBadgeProps) {
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[100]"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full mt-1 left-0 z-20 bg-white border rounded-lg shadow-lg py-1 min-w-[150px]">
+          <div className="absolute top-full mt-1 left-0 z-[101] bg-white border rounded-lg shadow-lg py-1 min-w-[150px]">
             {ACTIVE_STAGES.map((key) => (
               <button
                 key={key}
