@@ -53,7 +53,14 @@
   * {
     @apply border-border;
   }
+  :root, html, body {
+    height: 100%;
+  }
+  #__next {
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
   }
 }

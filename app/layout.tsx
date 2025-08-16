@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { Toaster } from "@/components/ui/toaster";
+import ClientOnly from "@/components/common/ClientOnly";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,14 +19,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} h-full overflow-hidden`}>
         <KeyboardShortcuts />
-        <Navigation />
-        <main className="container mx-auto py-6 px-4">
-          {children}
-        </main>
-        <Toaster />
+        <div className="grid h-full grid-rows-[auto,1fr]">
+          <Navigation className="sticky top-0 z-50" />
+          <main className="min-h-0 overflow-hidden">
+            {children}
+          </main>
+        </div>
+        <div suppressHydrationWarning>
+          <ClientOnly>
+            <Toaster richColors position="bottom-right" />
+          </ClientOnly>
+        </div>
       </body>
     </html>
   );

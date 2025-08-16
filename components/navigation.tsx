@@ -14,11 +14,11 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
-export function Navigation() {
+export function Navigation({ className }: { className?: string }) {
   const pathname = usePathname()
   
   return (
-    <nav className="border-b">
+    <nav className={cn("border-b bg-background", className)}>
       <div className="container flex h-16 items-center px-4">
         <div className="flex items-center space-x-4 lg:space-x-6">
           <Link href="/" className="flex items-center space-x-2">

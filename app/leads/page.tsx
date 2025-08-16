@@ -164,22 +164,34 @@ export default function LeadsPage() {
   return (
     <>
     <GlobalHotkeys onNewLead={() => setShowIntakeForm(true)} />
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Leads</h1>
-        <div className="flex gap-2">
-          <Button onClick={exportToCSV} variant="outline">
-            Export CSV
-          </Button>
-          <Button onClick={() => setShowIntakeForm(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Lead
-          </Button>
+    <section className="flex h-full min-h-0 flex-col">
+      {/* Page header stays visible */}
+      <div className="shrink-0 border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold">Leads</h1>
+            <div className="flex gap-2">
+              <Button onClick={exportToCSV} variant="outline">
+                Export CSV
+              </Button>
+              <Button onClick={() => setShowIntakeForm(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Lead
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      {/* Scrollable content area */}
+      <div
+        className="flex-1 min-h-0 overflow-auto"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        data-scroll="leads"
+      >
+        <div className="container mx-auto px-4 py-4">
+          <Card>
+            <CardHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-1">
@@ -374,16 +386,18 @@ export default function LeadsPage() {
             </Table>
           )}
         </CardContent>
-      </Card>
+          </Card>
 
-      <LeadIntakeForm 
-        open={showIntakeForm} 
-        onClose={() => {
-          setShowIntakeForm(false)
-          loadContacts()
-        }} 
-      />
-    </div>
+          <LeadIntakeForm 
+            open={showIntakeForm} 
+            onClose={() => {
+              setShowIntakeForm(false)
+              loadContacts()
+            }} 
+          />
+        </div>
+      </div>
+    </section>
     </>
   )
 }
