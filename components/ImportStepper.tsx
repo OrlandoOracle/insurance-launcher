@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ interface ImportStepperProps {
 type Step = 'upload' | 'mapping' | 'validation' | 'review' | 'import';
 
 export function ImportStepper({ onComplete }: ImportStepperProps) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('upload');
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -514,7 +516,10 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
           </Alert>
 
           <div className="flex justify-center">
-            <Button onClick={onComplete}>
+            <Button onClick={() => {
+              onComplete();
+              router.push('/');
+            }}>
               Go to Dashboard
             </Button>
           </div>

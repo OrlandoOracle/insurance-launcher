@@ -3,6 +3,13 @@ import { FOLDER_STRUCTURE, getStageFolder, leadFolderName } from './paths';
 import type { IndexEntry, Lead } from './schema';
 import { LeadSchema } from './schema';
 
+// Event emitter for index updates
+const emitIndexUpdated = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('index:updated'));
+  }
+};
+
 const STAGE_DIRS = [
   FOLDER_STRUCTURE.ACTIVE,
   FOLDER_STRUCTURE.SOLD,
@@ -22,8 +29,9 @@ export class IndexService {
       const content = await fs.readFile(FOLDER_STRUCTURE.indexFile);
       this.cache = JSON.parse(content);
     } catch (error: unknown) {
-      console.error('Failed to load index, will be rebuilt on scan:', error);
-      this.cache = [];
+      console.error('Failed to load index, rebuilding from disk:', error);
+      // If no index on disk, build it now
+      await this.fullScan();
     }
     
     return this.cache;
@@ -31,6 +39,7 @@ export class IndexService {
 
   async save(): Promise<void> {
     await fs.writeJSONAt('leads.index.json', this.cache);
+    emitIndexUpdated(); // Notify listeners of index change
   }
 
   async upsert(entry: IndexEntry): Promise<void> {

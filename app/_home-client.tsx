@@ -8,6 +8,7 @@ import { LeadTable } from '@/components/LeadTable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Upload, RefreshCw } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { dataStore } from '@/lib/data-store';
 import { indexService } from '@/lib/index';
@@ -28,6 +29,7 @@ export default function HomeClient() {
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [stageFilter, setStageFilter] = useState<'All' | string>('All');
 
   // Ensure we only show dynamic content after mount
   useState(() => {
@@ -42,7 +44,35 @@ export default function HomeClient() {
     enabled: mounted,
   });
 
-  // Auto-open last lead
+  // Initial scan and event subscription
+  useEffect(() => {
+    if (!mounted) return;
+    let isMounted = true;
+
+    const doScan = async () => {
+      try {
+        await indexService.fullScan();
+        if (isMounted) refetch();
+      } catch (e: unknown) {
+        console.error('[Home] initial fullScan failed', e);
+      }
+    };
+
+    doScan();
+
+    const onIndexUpdated = () => {
+      if (isMounted) refetch();
+    };
+    window.addEventListener('index:updated', onIndexUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('index:updated', onIndexUpdated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, refetch]);
+
+  // Auto-open last lead (separate effect)
   useEffect(() => {
     if (!mounted || isLoading || leads.length === 0) return;
     
@@ -181,10 +211,28 @@ export default function HomeClient() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Leads</CardTitle>
-            <CardDescription>
-              View and manage all your insurance leads
-            </CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Leads</CardTitle>
+                <CardDescription>
+                  View and manage all your insurance leads
+                </CardDescription>
+              </div>
+              <Select value={stageFilter} onValueChange={setStageFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Stages</SelectItem>
+                  <SelectItem value="Data Lead">Data Lead</SelectItem>
+                  <SelectItem value="Contacted">Contacted</SelectItem>
+                  <SelectItem value="Quoted">Quoted</SelectItem>
+                  <SelectItem value="Sold">Sold</SelectItem>
+                  <SelectItem value="Lost">Lost</SelectItem>
+                  <SelectItem value="Potential Duplicate">Potential Duplicate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -193,7 +241,7 @@ export default function HomeClient() {
               </div>
             ) : (
               <LeadTable
-                leads={leads}
+                leads={stageFilter === 'All' ? leads : leads.filter(l => l.stage === stageFilter)}
                 onUpdate={refetch}
                 onDelete={(id) => setDeleteId(id)}
                 onDuplicate={handleDuplicate}
