@@ -8,10 +8,10 @@ import {
   digitsOnly, 
   formatPhone10 
 } from '@/lib/import/normalize';
-import { contactExists } from '@/lib/dup';
 import { getDataDir } from '@/lib/storage';
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { importContacts } from '@/app/actions/contacts';
 
 export type RowIssue = { 
   line: number; 
@@ -273,6 +273,10 @@ export async function POST(request: NextRequest) {
       const phoneDigits = digitsOnly(phoneRaw);
       const phoneFormatted = formatPhone10(phoneDigits) || phoneDigits;
       
+      // Extract GHL fields
+      const ghlId = fieldMap.ghlId ? row[fieldMap.ghlId] || '' : '';
+      const ghlUrl = fieldMap.ghlUrl ? row[fieldMap.ghlUrl] || '' : '';
+      
       // Build processed row for tracking
       const processedRow = {
         firstName,
@@ -280,7 +284,9 @@ export async function POST(request: NextRequest) {
         email,
         phone: phoneFormatted,
         phoneDigits,
-        source
+        source,
+        ghlId: ghlId || undefined,
+        ghlUrl: ghlUrl || undefined
       };
       
       // Validation
@@ -298,18 +304,23 @@ export async function POST(request: NextRequest) {
       }
       
       // Check for duplicates in current batch
-      const dedupeKey = `${email}|${phoneDigits}`;
-      if (hasContact && seenKeys.has(dedupeKey)) {
+      const dedupeKey = ghlId || `${email}|${phoneDigits}`;
+      if ((ghlId || hasContact) && seenKeys.has(dedupeKey)) {
         duplicatesList.push({ ...processedRow, reason: 'Duplicate in file' });
         continue;
       }
       seenKeys.add(dedupeKey);
       
-      // Check for duplicates in database
-      if (hasContact) {
-        const exists = await contactExists({ 
-          email: email || undefined, 
-          phoneDigits: phoneDigits || undefined 
+      // Check for duplicates in database using GHL ID, email, or phone
+      if (ghlId || hasContact) {
+        const exists = await prisma.lead.findFirst({
+          where: {
+            OR: [
+              ghlId ? { ghlId } : {},
+              email ? { email } : {},
+              phoneDigits ? { phone: phoneDigits } : {}
+            ].filter(condition => Object.keys(condition).length > 0)
+          }
         });
         
         if (exists) {
@@ -320,14 +331,16 @@ export async function POST(request: NextRequest) {
       
       // Import the contact
       try {
-        const newContact = await prisma.contact.create({
+        const newContact = await prisma.lead.create({
           data: {
             firstName,
             lastName,
-            email: email || '',
-            phone: phoneFormatted || '',
-            howHeard: source,
-            stage: 'NEW_LEAD',
+            email: email || null,
+            phone: phoneFormatted || null,
+            source,
+            ghlId: ghlId || null,
+            ghlUrl: ghlUrl || null,
+            stage: 'NEW',
             tags: JSON.stringify([batchTag])
           }
         });

@@ -17,6 +17,7 @@ import { LeadIntakeForm } from '@/components/lead-intake-form'
 import { toast } from 'sonner'
 import { StageBadge } from '@/components/stage-badge'
 import { LeadDetailDrawer } from '@/components/lead/LeadDetailDrawer'
+import ImportLeadsDialog from '@/components/leads/ImportLeadsDialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -131,10 +132,13 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <h1 className="text-3xl font-bold">Leads</h1>
-              <Button onClick={() => setShowIntakeForm(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Lead
-              </Button>
+              <div className="flex items-center gap-2">
+                <ImportLeadsDialog />
+                <Button onClick={() => setShowIntakeForm(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Lead
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -207,11 +211,14 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
                   ) : (
                     <>
                       <p className="text-lg font-medium">No leads yet</p>
-                      <p className="text-sm mt-1">Get started by adding your first lead</p>
-                      <Button onClick={() => setShowIntakeForm(true)} className="mt-4" size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Lead
-                      </Button>
+                      <p className="text-sm mt-1">Get started by adding your first lead or importing from CSV</p>
+                      <div className="flex gap-2 justify-center mt-4">
+                        <Button onClick={() => setShowIntakeForm(true)} size="sm">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Lead
+                        </Button>
+                        <ImportLeadsDialog variant="empty" />
+                      </div>
                     </>
                   )}
                 </div>

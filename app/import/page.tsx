@@ -25,6 +25,8 @@ interface PreviewRow {
   email: string
   phone: string
   source: string
+  ghlId?: string
+  ghlUrl?: string
 }
 
 export default function ImportPage() {
@@ -92,12 +94,17 @@ export default function ImportPage() {
       const phoneDigits = digitsOnly(phoneRaw)
       const phoneFormatted = formatPhone10(phoneDigits) || phoneDigits
       
+      const ghlId = map.ghlId ? row[map.ghlId] || undefined : undefined
+      const ghlUrl = map.ghlUrl ? row[map.ghlUrl] || undefined : undefined
+      
       previewRows.push({
         firstName,
         lastName,
         email,
         phone: phoneFormatted,
-        source: 'CSV Import'
+        source: 'CSV Import',
+        ghlId,
+        ghlUrl
       })
     }
     
@@ -310,6 +317,18 @@ export default function ImportPage() {
                         <span className="ml-2">{fieldMap.phone}</span>
                       </div>
                     )}
+                    {fieldMap.ghlId && (
+                      <div>
+                        <Badge variant="outline">GHL ID</Badge>
+                        <span className="ml-2">{fieldMap.ghlId}</span>
+                      </div>
+                    )}
+                    {fieldMap.ghlUrl && (
+                      <div>
+                        <Badge variant="outline">GHL URL</Badge>
+                        <span className="ml-2">{fieldMap.ghlUrl}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               )}
@@ -353,6 +372,7 @@ export default function ImportPage() {
                         <TableHead>Last Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>GHL</TableHead>
                         <TableHead>Valid</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -367,6 +387,13 @@ export default function ImportPage() {
                             <TableCell>{row.lastName}</TableCell>
                             <TableCell className="text-sm">{row.email}</TableCell>
                             <TableCell className="text-sm">{row.phone}</TableCell>
+                            <TableCell className="text-sm">
+                              {row.ghlId ? (
+                                <Badge variant="outline" className="text-xs">✓</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
                             <TableCell>
                               {isValid ? (
                                 <CheckCircle className="h-4 w-4 text-green-600" />

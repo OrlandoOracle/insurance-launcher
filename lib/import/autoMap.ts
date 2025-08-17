@@ -10,6 +10,8 @@ export type FieldMap = {
   lastName?: string;
   email?: string;
   phone?: string;
+  ghlId?: string;
+  ghlUrl?: string;
 };
 
 /**
@@ -60,6 +62,25 @@ export function buildFieldMap(headers: string[]): FieldMap {
     map.phone = bestPhone.header;
   }
   
+  // Map GHL fields if found
+  const ghlIdHeader = headers.find(h => {
+    const lower = h.toLowerCase();
+    return lower.includes('ghl') && (lower.includes('id') || lower.includes('contact'));
+  });
+  
+  const ghlUrlHeader = headers.find(h => {
+    const lower = h.toLowerCase();
+    return lower.includes('ghl') && (lower.includes('url') || lower.includes('link'));
+  });
+  
+  if (ghlIdHeader) {
+    map.ghlId = ghlIdHeader;
+  }
+  
+  if (ghlUrlHeader) {
+    map.ghlUrl = ghlUrlHeader;
+  }
+  
   return map;
 }
 
@@ -81,6 +102,14 @@ export function describeMappings(map: FieldMap): string {
   
   if (map.phone) {
     parts.push(`${map.phone} → Phone`);
+  }
+  
+  if (map.ghlId) {
+    parts.push(`${map.ghlId} → GHL ID`);
+  }
+  
+  if (map.ghlUrl) {
+    parts.push(`${map.ghlUrl} → GHL URL`);
   }
   
   return parts.length > 0 

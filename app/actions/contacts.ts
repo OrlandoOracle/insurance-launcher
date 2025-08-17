@@ -240,56 +240,176 @@ export async function addActivity(contactId: string, data: {
   return activity
 }
 
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  // Remove all non-digits
+  const digits = phone.replace(/\D/g, '')
+  // If US number (10 or 11 digits), normalize to 10 digits
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return digits.substring(1)
+  }
+  if (digits.length === 10) {
+    return digits
+  }
+  // Return as-is for international or other formats
+  return digits
+}
+
 export async function importContacts(contacts: Array<{
   firstName: string
   lastName: string
-  email: string
-  phone: string
-  source?: string
+  email: string | null
+  phone: string | null
+  source?: string | null
+  ghlId?: string | null
+  ghlUrl?: string | null
 }>) {
   const results = {
     imported: 0,
+    updated: 0,
     skipped: 0,
     errors: [] as string[]
   }
   
-  for (const contact of contacts) {
+  for (let i = 0; i < contacts.length; i++) {
+    const contact = contacts[i]
+    
     try {
-      // Check for duplicates
-      const existing = await prisma.lead.findFirst({
-        where: {
-          OR: [
-            { email: contact.email },
-            { phone: contact.phone }
-          ]
-        }
-      })
-      
-      if (existing) {
+      // Skip rows with no identifying information
+      if (!contact.ghlId && !contact.email && !contact.phone) {
         results.skipped++
+        results.errors.push(`Row ${i + 1}: Skipped - no ID, email, or phone`)
         continue
       }
       
-      // Create new contact
-      const newContact = await prisma.lead.create({
-        data: {
-          ...contact,
-          tags: '[]'
-        }
-      })
+      // Auto-generate GHL URL if ID provided but URL missing
+      if (contact.ghlId && !contact.ghlUrl) {
+        contact.ghlUrl = `https://app.gohighlevel.com/contacts/${contact.ghlId}`
+      }
       
-      // Add import activity
-      await prisma.activity.create({
-        data: {
-          contactId: newContact.id,
-          type: 'NOTE',
-          summary: 'Imported via CSV'
-        }
-      })
+      // Normalize phone for comparison
+      const normalizedPhone = normalizePhone(contact.phone)
       
-      results.imported++
-    } catch (error) {
-      results.errors.push(`Failed to import ${contact.email}: ${error}`)
+      // Upsert logic with priority: ghlId > email > phone
+      if (contact.ghlId) {
+        // Upsert by GHL ID
+        const existing = await prisma.lead.upsert({
+          where: { ghlId: contact.ghlId },
+          update: {
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+            source: contact.source,
+            ghlUrl: contact.ghlUrl,
+          },
+          create: {
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+            source: contact.source,
+            ghlId: contact.ghlId,
+            ghlUrl: contact.ghlUrl,
+            tags: '[]'
+          }
+        })
+        
+        if (existing) {
+          results.updated++
+        } else {
+          results.imported++
+        }
+      } else if (contact.email) {
+        // Try to upsert by email
+        const existing = await prisma.lead.findUnique({
+          where: { email: contact.email }
+        })
+        
+        if (existing) {
+          await prisma.lead.update({
+            where: { id: existing.id },
+            data: {
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              phone: contact.phone || existing.phone,
+              source: contact.source || existing.source,
+              ghlUrl: contact.ghlUrl || existing.ghlUrl,
+            }
+          })
+          results.updated++
+        } else {
+          await prisma.lead.create({
+            data: {
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              email: contact.email,
+              phone: contact.phone,
+              source: contact.source,
+              ghlUrl: contact.ghlUrl,
+              tags: '[]'
+            }
+          })
+          results.imported++
+        }
+      } else if (normalizedPhone) {
+        // Try to find by normalized phone
+        const existing = await prisma.lead.findFirst({
+          where: { phone: normalizedPhone }
+        })
+        
+        if (existing) {
+          await prisma.lead.update({
+            where: { id: existing.id },
+            data: {
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              email: contact.email || existing.email,
+              source: contact.source || existing.source,
+              ghlUrl: contact.ghlUrl || existing.ghlUrl,
+            }
+          })
+          results.updated++
+        } else {
+          await prisma.lead.create({
+            data: {
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              phone: normalizedPhone,
+              source: contact.source,
+              ghlUrl: contact.ghlUrl,
+              tags: '[]'
+            }
+          })
+          results.imported++
+        }
+      }
+      
+      // Add import activity for new imports only
+      if (results.imported > 0) {
+        const lead = await prisma.lead.findFirst({
+          where: {
+            OR: [
+              contact.ghlId ? { ghlId: contact.ghlId } : {},
+              contact.email ? { email: contact.email } : {},
+              normalizedPhone ? { phone: normalizedPhone } : {}
+            ].filter(condition => Object.keys(condition).length > 0)
+          }
+        })
+        
+        if (lead) {
+          await prisma.activity.create({
+            data: {
+              contactId: lead.id,
+              type: 'NOTE',
+              summary: 'Imported via CSV'
+            }
+          })
+        }
+      }
+    } catch (error: any) {
+      results.errors.push(`Row ${i + 1}: ${error.message || error}`)
+      results.skipped++
     }
   }
   

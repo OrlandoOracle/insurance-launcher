@@ -12,7 +12,7 @@ model Lead {
   id            String    @id @default(cuid())
   firstName     String
   lastName      String
-  email         String?
+  email         String?   @unique
   phone         String?
   source        String? // "How heard"
   stage         LeadStage @default(NEW)
@@ -23,6 +23,7 @@ model Lead {
   // existing fields
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  ghlId     String?  @unique // GHL contact ID for deduplication
   ghlUrl    String?
   tags      String   @default("[]") // JSON array stored as string
 

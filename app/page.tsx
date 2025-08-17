@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import { DashboardClient } from '@/components/dashboard-client'
+import DashboardClient from '@/components/dashboard-client'
+import ErrorBoundary from '@/components/dev/ErrorBoundary'
 
 async function getKPIData(daysAgo: number = 0) {
   const startDate = new Date()
@@ -106,14 +107,23 @@ export default async function DashboardPage() {
   ])
 
   return (
-    <DashboardClient 
-      initialData={{
-        todayKPIs,
-        weekKPIs,
-        tasks,
-        overdueTasks,
-        settings
-      }}
-    />
+    <section className="h-full flex flex-col">
+      <div
+        className="min-h-0 grow overflow-auto"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <ErrorBoundary>
+          <DashboardClient 
+            initialData={{
+              todayKPIs,
+              weekKPIs,
+              tasks,
+              overdueTasks,
+              settings
+            }}
+          />
+        </ErrorBoundary>
+      </div>
+    </section>
   )
 }
