@@ -110,16 +110,24 @@ export async function POST(request: NextRequest) {
         ltrim: true,
         rtrim: true,
         bom: true
-      } as any);
+      }) as Record<string, any>[];
       
-      // Count rows for error checking
-      rows.forEach((rec: any) => {
-          lineNumber++;
+      // Post-parse validation and normalization
+      let validRowCount = 0;
+      rows = rows.filter((rec, idx) => {
+          lineNumber = idx + 2; // data lines start after header row
           
           // Drop rows that are completely empty after trim
           const vals = Object.values(rec ?? {});
-          if (!vals.some(v => (v ?? '').toString().trim().length)) {
-            return null;
+          const hasContent = vals.some(v => (v ?? '').toString().trim().length > 0);
+          
+          if (!hasContent) {
+            issues.push({
+              line: lineNumber,
+              reason: 'Empty row - skipping',
+              sample: null
+            });
+            return false;
           }
           
           // Normalize smart quotes and special characters
@@ -134,17 +142,8 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          // Check for column count mismatch (warning, not error)
-          const expectedCols = 0;
-          const actualCols = Object.keys(rec).length;
-          if (expectedCols > 0 && actualCols !== expectedCols) {
-            issues.push({
-              line: lineNumber,
-              reason: `Column count mismatch: expected ${expectedCols}, got ${actualCols}`,
-              sample: rec
-            });
-          }
-          
+          validRowCount++;
+          return true;
       });
     } catch (error: any) {
       // If bulk parse fails, try line-by-line parsing as fallback
