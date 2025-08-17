@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDiscoveryStore } from '@/lib/discovery/store'
 import { WizardShell } from '@/components/discovery/WizardShell'
@@ -23,7 +23,7 @@ import {
   ClosingStep
 } from '@/components/discovery/steps'
 
-export default function NewDiscoveryPage() {
+function DiscoveryContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { sessionId, currentStep, initSession, updateData } = useDiscoveryStore()
@@ -140,5 +140,20 @@ export default function NewDiscoveryPage() {
       
       <RapportPad />
     </>
+  )
+}
+
+export default function NewDiscoveryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading discovery session...</p>
+        </div>
+      </div>
+    }>
+      <DiscoveryContent />
+    </Suspense>
   )
 }
