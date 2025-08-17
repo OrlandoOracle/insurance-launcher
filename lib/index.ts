@@ -1,21 +1,30 @@
 import { fs } from './fs';
-import { FOLDER_STRUCTURE } from './paths';
+import { FOLDER_STRUCTURE, getStageFolder, leadFolderName } from './paths';
 import type { IndexEntry, Lead } from './schema';
 
 export class IndexService {
   private cache: IndexEntry[] = [];
   private lastSaved: number = 0;
   private saveTimeout: NodeJS.Timeout | null = null;
+  private migrated = false;
 
   async load(): Promise<IndexEntry[]> {
+    if (this.cache.length) return this.cache;
     try {
       const content = await fs.readFile(FOLDER_STRUCTURE.indexFile);
       this.cache = JSON.parse(content);
-      return this.cache;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load index, rebuilding:', error);
-      return this.rebuild();
+      await this.rebuild();
     }
+    
+    // Run migration once per session
+    if (!this.migrated) {
+      await this.migrateLegacyFlatFiles();
+      this.migrated = true;
+    }
+    
+    return this.cache;
   }
 
   async rebuild(): Promise<IndexEntry[]> {
@@ -40,6 +49,8 @@ export class IndexService {
               entries.push({
                 id: lead.id,
                 filePath: `${folder}/${file}`,
+                folderPath: '',  // Will be set by migration
+                jsonPath: '',    // Will be set by migration
                 firstName: lead.firstName,
                 lastName: lead.lastName,
                 emails: lead.emails,
@@ -47,12 +58,12 @@ export class IndexService {
                 stage: lead.stage,
                 updatedAt: lead.updatedAt
               });
-            } catch (error) {
+            } catch (error: unknown) {
               console.error(`Failed to parse ${folder}/${file}:`, error);
             }
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`Failed to list files in ${folder}:`, error);
       }
     }
@@ -62,7 +73,8 @@ export class IndexService {
     return entries;
   }
 
-  async add(entry: IndexEntry): Promise<void> {
+  async upsert(entry: IndexEntry): Promise<void> {
+    await this.load(); // Ensure cache is loaded
     const existing = this.cache.findIndex(e => e.id === entry.id);
     if (existing >= 0) {
       this.cache[existing] = entry;
@@ -72,24 +84,34 @@ export class IndexService {
     this.scheduleSave();
   }
 
+  async add(entry: IndexEntry): Promise<void> {
+    return this.upsert(entry);
+  }
+
   async update(id: string, updates: Partial<IndexEntry>): Promise<void> {
-    const index = this.cache.findIndex(e => e.id === id);
-    if (index >= 0) {
-      this.cache[index] = { ...this.cache[index], ...updates };
-      this.scheduleSave();
+    const entry = await this.findById(id);
+    if (entry) {
+      await this.upsert({ ...entry, ...updates });
     }
   }
 
   async remove(id: string): Promise<void> {
+    await this.load(); // Ensure cache is loaded
     this.cache = this.cache.filter(e => e.id !== id);
     this.scheduleSave();
   }
 
+  async findById(id: string): Promise<IndexEntry | undefined> {
+    if (!this.cache.length) await this.load();
+    return this.cache.find(e => e.id === id);
+  }
+
+  // Legacy sync methods for backward compat
   get(): IndexEntry[] {
     return [...this.cache];
   }
 
-  findById(id: string): IndexEntry | undefined {
+  findById_sync(id: string): IndexEntry | undefined {
     return this.cache.find(e => e.id === id);
   }
 
@@ -123,6 +145,41 @@ export class IndexService {
     );
   }
 
+  // MIGRATION: Move flat files /Leads/.../First_Last.json => /Leads/.../First_Last__<shortId>/lead.json
+  private async migrateLegacyFlatFiles(): Promise<void> {
+    // Quick scan: read index for entries that have filePath but no folderPath/jsonPath
+    const needs = this.cache.filter(e => (!e.folderPath || !e.jsonPath) && e.filePath && e.filePath.endsWith('.json'));
+    
+    for (const e of needs) {
+      try {
+        const legacyPath = e.filePath;
+        const lead = await fs.readJSON<Lead>(legacyPath);
+        const folder = `${getStageFolder(e.stage)}/${leadFolderName(lead.firstName, lead.lastName, lead.id)}`;
+        const jsonPath = `${folder}/lead.json`;
+        
+        // Check if new path already exists
+        const exists = await fs.exists(jsonPath);
+        if (!exists) {
+          await fs.ensureFolder(folder);
+          await fs.writeJSONAt(jsonPath, lead);
+          // Optionally delete old file after successful migration
+          // await fs.deleteFile(legacyPath);
+        }
+        
+        e.folderPath = folder;
+        e.jsonPath = jsonPath;
+        // Keep filePath for backward compat
+      } catch (err: unknown) {
+        console.error('[migrateLegacyFlatFiles] failed for', e.id, err);
+      }
+    }
+    
+    if (needs.length > 0) {
+      await this.save();
+      console.log(`[migrateLegacyFlatFiles] Migrated ${needs.length} leads to folder structure`);
+    }
+  }
+
   private scheduleSave(): void {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
@@ -148,7 +205,7 @@ export class IndexService {
       );
       
       this.lastSaved = now;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to save index:', error);
       throw error;
     }

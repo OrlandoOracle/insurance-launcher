@@ -112,19 +112,15 @@ export class FileSystemService {
     }
   }
 
-  private async ensureFolder(path: string): Promise<FileSystemDirectoryHandle> {
+  async ensureFolder(path: string): Promise<void> {
     if (!this.rootHandle) throw new Error('Not connected');
     
-    const parts = path.split('/');
-    let current = this.rootHandle;
-    
-    for (const part of parts) {
-      if (part) {
-        current = await current.getDirectoryHandle(part, { create: true });
-      }
+    const parts = path.split('/').filter(Boolean);
+    let dir: FileSystemDirectoryHandle = this.rootHandle;
+    for (const p of parts) {
+      // @ts-expect-error: getDirectoryHandle options not in all lib doms
+      dir = await dir.getDirectoryHandle(p, { create: true });
     }
-    
-    return current;
   }
 
   async readFile(path: string): Promise<string> {
@@ -273,6 +269,39 @@ export class FileSystemService {
 
   async writeJSON<T>(path: string, data: T): Promise<void> {
     await this.writeFile(path, JSON.stringify(data, null, 2));
+  }
+
+  async getHandleForPath(path: string, opts?: { directory?: boolean }): Promise<FileSystemFileHandle|FileSystemDirectoryHandle> {
+    if (!this.rootHandle) throw new Error('No root handle');
+    const parts = path.split('/').filter(Boolean);
+    let handle: any = this.rootHandle;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      if (isLast && !opts?.directory) {
+        // @ts-expect-error: lib dom typing gap
+        handle = await handle.getFileHandle(part, { create: true });
+      } else {
+        // @ts-expect-error: lib dom typing gap
+        handle = await handle.getDirectoryHandle(part, { create: true });
+      }
+    }
+    return handle;
+  }
+
+  async exists(path: string): Promise<boolean> {
+    try {
+      await this.getHandleForPath(path);
+      return true;
+    } catch (e: unknown) {
+      return false;
+    }
+  }
+
+  async writeJSONAt(jsonPath: string, data: unknown): Promise<void> {
+    const folderPath = jsonPath.split('/').slice(0, -1).join('/');
+    await this.ensureFolder(folderPath);
+    await this.writeFile(jsonPath, JSON.stringify(data, null, 2));
   }
 }
 

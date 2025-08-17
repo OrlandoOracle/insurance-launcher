@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { dataStore } from '@/lib/data-store';
+import { indexService } from '@/lib/index';
 import { StageEnum, type Lead } from '@/lib/schema';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
@@ -113,6 +114,10 @@ export default function NewLeadPage() {
       if (createCompanions.notes) {
         await dataStore.createCompanionFile(lead.id, 'Notes');
       }
+      
+      // Remember last open lead
+      const entry = await indexService.findById(lead.id);
+      if (entry?.jsonPath) await dataStore.markLastOpen(entry.jsonPath);
       
       toast.success('Lead created successfully');
       router.push('/');

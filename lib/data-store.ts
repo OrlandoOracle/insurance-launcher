@@ -1,217 +1,186 @@
 import { v4 as uuidv4 } from 'uuid';
 import { fs } from './fs';
 import { indexService } from './index';
-import { FOLDER_STRUCTURE, getLeadFolderByStage, getLeadFilename } from './paths';
+import { getStageFolder, leadFolderName, companionPath, getCompanionFilePath } from './paths';
 import type { Lead, IndexEntry } from './schema';
 import { LeadSchema } from './schema';
+import { set, get } from 'idb-keyval';
+
+const LAST_OPEN_LEAD_KEY = 'last-open-lead-json-path';
 
 export class DataStore {
   async createLead(data: Partial<Lead>): Promise<Lead> {
+    const now = new Date().toISOString();
     const lead: Lead = {
-      id: data.id || uuidv4(),
-      createdAt: data.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      firstName: data.firstName || '',
-      lastName: data.lastName || '',
-      phones: data.phones || [],
-      emails: data.emails || [],
-      stage: data.stage || 'Data Lead',
-      tags: data.tags || [],
-      appointments: data.appointments || [],
-      meta: data.meta || {},
-      ...data
+      id: data.id ?? uuidv4(),
+      createdAt: data.createdAt ?? now,
+      updatedAt: now,
+      firstName: data.firstName?.trim() || 'Unknown',
+      lastName: data.lastName?.trim() || 'Unknown',
+      phones: data.phones ?? [],
+      emails: data.emails ?? [],
+      stage: data.stage ?? 'Data Lead',
+      tags: data.tags ?? [],
+      dob: data.dob,
+      address: data.address,
+      source: data.source,
+      rapport: data.rapport ?? '',
+      notes: data.notes ?? '',
+      appointments: data.appointments ?? [],
+      insuredWith: data.insuredWith,
+      income: data.income,
+      meta: data.meta ?? {}
     };
+    const folder = `${getStageFolder(lead.stage)}/${leadFolderName(lead.firstName, lead.lastName, lead.id)}`;
+    const jsonPath = `${folder}/lead.json`;
 
-    // Validate
-    const validated = LeadSchema.parse(lead);
-    
-    // Determine folder and filename
-    const folder = getLeadFolderByStage(validated.stage);
-    const filename = getLeadFilename(validated.firstName, validated.lastName);
-    const filePath = `${folder}/${filename}`;
-
-    // Write to disk
-    await fs.writeFile(filePath, JSON.stringify(validated, null, 2));
+    LeadSchema.parse(lead);
+    await fs.writeJSONAt(jsonPath, lead);
 
     // Update index
-    const indexEntry: IndexEntry = {
-      id: validated.id,
-      filePath,
-      firstName: validated.firstName,
-      lastName: validated.lastName,
-      emails: validated.emails,
-      phones: validated.phones,
-      stage: validated.stage,
-      updatedAt: validated.updatedAt
-    };
-    
-    await indexService.add(indexEntry);
-
-    return validated;
-  }
-
-  async updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
-    const entry = indexService.findById(id);
-    if (!entry) {
-      throw new Error(`Lead ${id} not found`);
-    }
-
-    // Read current lead
-    const content = await fs.readFile(entry.filePath);
-    const current = JSON.parse(content) as Lead;
-
-    // Merge updates
-    const updated: Lead = {
-      ...current,
-      ...updates,
-      id: current.id, // Preserve ID
-      createdAt: current.createdAt, // Preserve creation date
-      updatedAt: new Date().toISOString()
-    };
-
-    // Validate
-    const validated = LeadSchema.parse(updated);
-
-    // Check if we need to move the file (stage changed)
-    const newFolder = getLeadFolderByStage(validated.stage);
-    const currentFolder = entry.filePath.substring(0, entry.filePath.lastIndexOf('/'));
-    
-    let newFilePath = entry.filePath;
-    
-    if (newFolder !== currentFolder) {
-      // Move to new folder
-      const filename = entry.filePath.substring(entry.filePath.lastIndexOf('/') + 1);
-      newFilePath = `${newFolder}/${filename}`;
-      
-      await fs.writeFile(newFilePath, JSON.stringify(validated, null, 2));
-      await fs.deleteFile(entry.filePath);
-    } else {
-      // Update in place
-      await fs.writeFile(entry.filePath, JSON.stringify(validated, null, 2));
-    }
-
-    // Update index
-    await indexService.update(id, {
-      filePath: newFilePath,
-      firstName: validated.firstName,
-      lastName: validated.lastName,
-      emails: validated.emails,
-      phones: validated.phones,
-      stage: validated.stage,
-      updatedAt: validated.updatedAt
+    await indexService.upsert({
+      id: lead.id,
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      emails: lead.emails,
+      phones: lead.phones,
+      stage: lead.stage as any,
+      updatedAt: lead.updatedAt,
+      filePath: jsonPath,      // legacy compat
+      folderPath: folder,
+      jsonPath
     });
 
-    return validated;
+    return lead;
   }
 
   async getLead(id: string): Promise<Lead | null> {
-    const entry = indexService.findById(id);
-    if (!entry) return null;
-
     try {
-      const content = await fs.readFile(entry.filePath);
-      return JSON.parse(content) as Lead;
-    } catch {
+      const entry = await indexService.findById(id);
+      if (!entry) return null;
+      
+      // Try new path first
+      if (entry.jsonPath) {
+        try {
+          return await fs.readJSON<Lead>(entry.jsonPath);
+        } catch (e: unknown) {
+          console.warn('[getLead] Failed to read from jsonPath, trying legacy', e);
+        }
+      }
+      
+      // Fallback to legacy path
+      if (entry.filePath) {
+        return await fs.readJSON<Lead>(entry.filePath);
+      }
+      
+      return null;
+    } catch (error: unknown) {
+      console.error('[getLead] Failed to get lead:', error);
       return null;
     }
+  }
+
+  async updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
+    const lead = await this.getLead(id);
+    if (!lead) throw new Error('Lead not found');
+    
+    const updated = { ...lead, ...updates, updatedAt: new Date().toISOString() };
+    
+    // find index entry to get jsonPath
+    const entry = await indexService.findById(lead.id);
+    const jsonPath = entry?.jsonPath ?? `${getStageFolder(updated.stage)}/${leadFolderName(updated.firstName, updated.lastName, updated.id)}/lead.json`;
+    
+    await fs.writeJSONAt(jsonPath, updated);
+    await indexService.upsert({
+      id: updated.id,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      emails: updated.emails,
+      phones: updated.phones,
+      stage: updated.stage as any,
+      updatedAt: updated.updatedAt,
+      filePath: jsonPath,
+      folderPath: jsonPath.split('/').slice(0, -1).join('/'),
+      jsonPath
+    });
+
+    return updated;
+  }
+
+  async duplicateLead(id: string): Promise<void> {
+    const entry = await indexService.findById(id);
+    if (!entry) throw new Error('Lead not found');
+    const lead = await fs.readJSON<Lead>(entry.jsonPath || entry.filePath);
+    lead.id = uuidv4();
+    await this.createLead({ ...lead, tags: [...(lead.tags||[]), 'duplicate'] });
   }
 
   async deleteLead(id: string): Promise<void> {
-    const entry = indexService.findById(id);
+    const entry = await indexService.findById(id);
     if (!entry) return;
-
-    // Create backup
-    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const backupPath = `${FOLDER_STRUCTURE.backups}/Deleted_${timestamp}/${entry.filePath.split('/').pop()}`;
-    
-    const content = await fs.readFile(entry.filePath);
-    await fs.writeFile(backupPath, content);
-    
-    // Delete original
-    await fs.deleteFile(entry.filePath);
-    
-    // Update index
+    const backupFolder = `Backups/Deleted_${new Date().toISOString().slice(0,10).replace(/-/g,'')}`;
+    await fs.ensureFolder(backupFolder);
+    // naive move: read/write then remove - File System Access lacks atomic rename
+    const lead = await fs.readJSON<Lead>(entry.jsonPath || entry.filePath);
+    await fs.writeJSONAt(`${backupFolder}/${entry.folderPath?.split('/').pop() || entry.id}.json`, lead);
+    // Optionally: mark deleted in index or remove
     await indexService.remove(id);
   }
 
-  async duplicateLead(id: string): Promise<Lead> {
-    const lead = await this.getLead(id);
-    if (!lead) throw new Error(`Lead ${id} not found`);
-
-    const duplicate = {
-      ...lead,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    // Save to duplicates folder
-    const filename = getLeadFilename(duplicate.firstName, duplicate.lastName);
-    const filePath = `${FOLDER_STRUCTURE.duplicates}/${filename}`;
+  async createCompanionFile(leadId: string, type: 'Medications' | 'Doctors' | 'Notes'): Promise<void> {
+    const entry = await indexService.findById(leadId);
+    if (!entry) throw new Error('Lead not found');
     
-    await fs.writeFile(filePath, JSON.stringify(duplicate, null, 2));
-
-    // Update index
-    const indexEntry: IndexEntry = {
-      id: duplicate.id,
-      filePath,
-      firstName: duplicate.firstName,
-      lastName: duplicate.lastName,
-      emails: duplicate.emails,
-      phones: duplicate.phones,
-      stage: duplicate.stage,
-      updatedAt: duplicate.updatedAt
-    };
+    const lead = await this.getLead(leadId);
+    if (!lead) throw new Error('Lead data not found');
     
-    await indexService.add(indexEntry);
-
-    return duplicate;
-  }
-
-  async createCompanionFile(
-    leadId: string,
-    type: 'Medications' | 'Doctors' | 'Notes',
-    content?: string
-  ): Promise<void> {
-    const entry = indexService.findById(leadId);
-    if (!entry) throw new Error(`Lead ${leadId} not found`);
-
-    const dir = entry.filePath.substring(0, entry.filePath.lastIndexOf('/'));
-    const baseName = entry.filePath.substring(
-      entry.filePath.lastIndexOf('/') + 1,
-      entry.filePath.lastIndexOf('.')
-    );
-    const companionPath = `${dir}/${baseName}_${type}.md`;
-
-    const defaultContent = {
-      Medications: '# Medications\n\n## Current Medications\n- \n\n## Allergies\n- \n\n## Notes\n',
-      Doctors: '# Doctors\n\n## Primary Care Physician\nName: \nPhone: \nAddress: \n\n## Specialists\n- \n\n## Notes\n',
-      Notes: `# Notes\n\nCreated: ${new Date().toISOString()}\n\n---\n\n`
-    };
-
-    await fs.writeFile(companionPath, content || defaultContent[type]);
+    // Use new folder structure if available
+    let filePath: string;
+    if (entry.folderPath) {
+      filePath = companionPath(entry.folderPath, `${type}.md` as any);
+    } else {
+      // Legacy path
+      filePath = getCompanionFilePath(entry.filePath, type);
+    }
+    
+    const content = `# ${type} for ${lead.firstName} ${lead.lastName}\n\n_Created: ${new Date().toLocaleDateString()}_\n\n`;
+    await fs.writeFile(filePath, content);
   }
 
   async getCompanionFile(leadId: string, type: 'Medications' | 'Doctors' | 'Notes'): Promise<string | null> {
-    const entry = indexService.findById(leadId);
-    if (!entry) return null;
-
-    const dir = entry.filePath.substring(0, entry.filePath.lastIndexOf('/'));
-    const baseName = entry.filePath.substring(
-      entry.filePath.lastIndexOf('/') + 1,
-      entry.filePath.lastIndexOf('.')
-    );
-    const companionPath = `${dir}/${baseName}_${type}.md`;
-
     try {
-      return await fs.readFile(companionPath);
-    } catch {
+      const entry = await indexService.findById(leadId);
+      if (!entry) return null;
+      
+      // Try new folder structure first
+      if (entry.folderPath) {
+        const filePath = companionPath(entry.folderPath, `${type}.md` as any);
+        try {
+          return await fs.readFile(filePath);
+        } catch (e: unknown) {
+          // File doesn't exist in new location, try legacy
+        }
+      }
+      
+      // Try legacy path
+      const legacyPath = getCompanionFilePath(entry.filePath, type);
+      return await fs.readFile(legacyPath);
+    } catch (error: unknown) {
       return null;
     }
   }
 
-  getLeads(): IndexEntry[] {
-    return indexService.get();
+  async markLastOpen(jsonPath: string): Promise<void> {
+    await set(LAST_OPEN_LEAD_KEY, jsonPath);
+  }
+
+  async getLastOpen(): Promise<string | null> {
+    const v = await get(LAST_OPEN_LEAD_KEY);
+    return (typeof v === 'string') ? v : null;
+  }
+
+  async getLeads(): Promise<IndexEntry[]> {
+    return indexService.load();
   }
 
   searchLeads(query: string): IndexEntry[] {

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { X, Plus, ExternalLink, Save, Loader2 } from 'lucide-react';
 import { dataStore } from '@/lib/data-store';
+import { indexService } from '@/lib/index';
 import { StageEnum, type Lead } from '@/lib/schema';
 import { toast } from '@/components/ui/sonner';
 
@@ -43,6 +44,10 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
       if (data) {
         setLead(data);
         setFormData(data);
+        
+        // Mark as last open
+        const entry = await indexService.findById(leadId);
+        if (entry?.jsonPath) await dataStore.markLastOpen(entry.jsonPath);
       }
     } catch (error: unknown) {
       console.error('Failed to load lead:', error);

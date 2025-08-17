@@ -15,17 +15,18 @@ export const StageEnum = z.enum([
   "SOLD - Not Submitted",
   "Lead (FB Form)",
   "Sold",
-  "Lost"
+  "Lost",
+  "Potential Duplicate"
 ]);
 
 export const LeadSchema = z.object({
   id: z.string().uuid(),
-  createdAt: z.string(),         // ISO
-  updatedAt: z.string(),         // ISO
+  createdAt: z.string(),
+  updatedAt: z.string(),
   firstName: z.string(),
   lastName: z.string(),
-  phones: z.array(z.string()).default([]),   // E.164 if possible; accept raw and flag
-  emails: z.array(z.string().email().or(z.string())).default([]), // allow raw if not valid
+  phones: z.array(z.string()).default([]),
+  emails: z.array(z.string()).default([]),
   stage: StageEnum,
   tags: z.array(z.string()).default([]),
   dob: z.string().optional(),
@@ -34,28 +35,30 @@ export const LeadSchema = z.object({
   rapport: z.string().optional(),
   notes: z.string().optional(),
   appointments: z.array(z.object({
-    when: z.string(),            // ISO
+    when: z.string(),
     type: z.string().optional(),
     notes: z.string().optional()
   })).default([]),
   insuredWith: z.string().optional(),
   income: z.number().optional(),
-  meta: z.record(z.string(), z.unknown()).default({})
+  meta: z.record(z.unknown()).default({})
 });
-
 export type Lead = z.infer<typeof LeadSchema>;
 export type Stage = z.infer<typeof StageEnum>;
 
-export interface IndexEntry {
-  id: string;
-  filePath: string;
-  firstName: string;
-  lastName: string;
-  emails: string[];
-  phones: string[];
-  stage: Stage;
-  updatedAt: string;
-}
+export const IndexEntrySchema = z.object({
+  id: z.string().uuid(),
+  firstName: z.string(),
+  lastName: z.string(),
+  emails: z.array(z.string()).default([]),
+  phones: z.array(z.string()).default([]),
+  stage: StageEnum,
+  updatedAt: z.string(),
+  filePath: z.string(),   // legacy: keep for backward read if present
+  folderPath: z.string(),
+  jsonPath: z.string()
+});
+export type IndexEntry = z.infer<typeof IndexEntrySchema>;
 
 export interface ImportReport {
   timestamp: string;
@@ -64,7 +67,7 @@ export interface ImportReport {
   duplicates: number;
   errors: number;
   details: {
-    originalRow: Record<string, string>;
+    originalRow: Record<string, string | number | null | undefined>;
     result: 'imported' | 'duplicate' | 'error';
     leadId?: string;
     filePath?: string;

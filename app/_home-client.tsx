@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { StorageGate } from '@/components/StorageGate';
 import { LeadTable } from '@/components/LeadTable';
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function HomeClient() {
+  const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -39,6 +41,27 @@ export default function HomeClient() {
     },
     enabled: mounted,
   });
+
+  // Auto-open last lead
+  useEffect(() => {
+    if (!mounted || isLoading || leads.length === 0) return;
+    
+    (async () => {
+      try {
+        const lastPath = await dataStore.getLastOpen();
+        if (!lastPath) return;
+        // Find the entry by jsonPath
+        const entry = leads.find(e => e.jsonPath === lastPath || e.filePath === lastPath);
+        if (entry?.id) {
+          // Navigate to detail page
+          router.push(`/lead/${entry.id}`);
+        }
+      } catch (e: unknown) {
+        console.error('[auto-open] failed', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, isLoading]);
 
   const handleDelete = async () => {
     if (!deleteId) return;

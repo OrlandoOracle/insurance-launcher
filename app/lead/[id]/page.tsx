@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, FileText, Calendar, Phone, Mail, MapPin, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { dataStore } from '@/lib/data-store';
+import { indexService } from '@/lib/index';
 import type { Lead } from '@/lib/schema';
 import { format } from 'date-fns';
 import { toast } from '@/components/ui/sonner';
@@ -41,6 +42,10 @@ export default function LeadDetailPage() {
       const data = await dataStore.getLead(leadId);
       if (data) {
         setLead(data);
+        
+        // Mark as last open
+        const entry = await indexService.findById(leadId);
+        if (entry?.jsonPath) await dataStore.markLastOpen(entry.jsonPath);
         
         // Load companion files
         const [medications, doctors, notes] = await Promise.all([
