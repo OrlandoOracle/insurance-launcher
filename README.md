@@ -2,6 +2,12 @@
 
 A production-ready, local-first insurance sales CRM with zero lost follow-ups and instant recall of past conversations.
 
+## 🚀 Deployment Status
+
+- **Production**: [ooinsurance.netlify.app](https://ooinsurance.netlify.app) (main branch)
+- **Dev Preview**: [dev--ooinsurance.netlify.app](https://dev--ooinsurance.netlify.app) (dev branch)
+- **Storage Mode**: Browser (IndexedDB) on Netlify, Node (SQLite) locally
+
 ## Features
 
 ✅ **Zero Lost Follow-ups** - Automatic task creation for unanswered calls
