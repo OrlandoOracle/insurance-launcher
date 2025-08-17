@@ -203,14 +203,6 @@ export class FileSystemService {
     return files;
   }
 
-  async fileExists(path: string): Promise<boolean> {
-    try {
-      await this.readFile(path);
-      return true;
-    } catch (e: unknown) {
-      return false;
-    }
-  }
 
   getRootHandle(): FileSystemDirectoryHandle | null {
     return this.rootHandle;

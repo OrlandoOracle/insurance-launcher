@@ -73,7 +73,17 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
     maxFiles: 1
   });
 
-  const handleMapping = () => {
+  const handleMapping = async () => {
+    // Ensure index is loaded before checking duplicates
+    console.log('[ImportStepper] Loading index before duplicate checks');
+    try {
+      const indexEntries = await indexService.load();
+      console.log('[ImportStepper] Index loaded with', indexEntries.length, 'existing leads');
+    } catch (e: unknown) {
+      console.error('[ImportStepper] Failed to load index:', e);
+      toast.error('Failed to load existing leads for duplicate checking');
+    }
+    
     const leads = csvData.map(row => mapCSVToLead(row, mapping));
     setMappedLeads(leads);
     
@@ -84,6 +94,11 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
       duplicate: checkDuplicate(lead)
     }));
     
+    console.log('[ImportStepper] Validation complete:');
+    console.log('  - Valid leads:', validations.filter(v => v.validation.isValid && !v.duplicate.isDuplicate).length);
+    console.log('  - Duplicates:', validations.filter(v => v.duplicate.isDuplicate).length);
+    console.log('  - Errors:', validations.filter(v => !v.validation.isValid).length);
+    
     setValidationResults(validations);
     setDuplicateResults(validations.filter(v => v.duplicate.isDuplicate));
     setStep('validation');
@@ -91,6 +106,16 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
 
   const handleImport = async () => {
     setImporting(true);
+    
+    // Reload index before import to ensure we have latest data
+    console.log('[ImportStepper] Reloading index before import');
+    try {
+      await indexService.fullScan();
+      console.log('[ImportStepper] Index refreshed before import');
+    } catch (e: unknown) {
+      console.error('[ImportStepper] Failed to refresh index before import:', e);
+    }
+    
     const report: ImportReport = {
       timestamp: new Date().toISOString(),
       totalRows: mappedLeads.length,
@@ -324,7 +349,7 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
             <Button variant="outline" onClick={() => setStep('upload')}>
               Back
             </Button>
-            <Button onClick={handleMapping}>
+            <Button onClick={handleMapping} disabled={headers.length === 0}>
               Continue to Validation
             </Button>
           </div>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FolderOpen, AlertCircle } from 'lucide-react';
 import { fs } from '@/lib/fs';
 import { indexService } from '@/lib/index';
+import { toast } from '@/components/ui/sonner';
 
 interface StorageGateProps {
   children: React.ReactNode;
@@ -37,17 +38,29 @@ export function StorageGate({ children }: StorageGateProps) {
     setError(null);
     
     try {
+      console.log('[StorageGate] Attempting to restore previous connection...');
       const restored = await fs.restore();
+      
       if (restored) {
+        console.log('[StorageGate] Connection restored, performing full scan...');
         try {
-          await indexService.fullScan();
+          const entries = await indexService.fullScan();
+          console.log(`[StorageGate] Full scan complete, found ${entries.length} leads`);
+          
+          if (entries.length === 0) {
+            console.log('[StorageGate] No leads found in storage, this may be a new installation');
+          }
         } catch (e: unknown) {
-          console.error('[StorageGate] fullScan on restore failed', e);
+          console.error('[StorageGate] fullScan on restore failed:', e);
+          // Don't fail the connection if scan fails
+          toast.error('Failed to load existing leads. You may need to reconnect.');
         }
         setIsConnected(true);
+      } else {
+        console.log('[StorageGate] No previous connection to restore');
       }
     } catch (err: unknown) {
-      console.error('Failed to restore connection:', err);
+      console.error('[StorageGate] Failed to restore connection:', err);
       setError('Failed to restore previous connection');
     } finally {
       setIsLoading(false);
@@ -59,12 +72,24 @@ export function StorageGate({ children }: StorageGateProps) {
     setError(null);
     
     try {
+      console.log('[StorageGate] User initiated connection...');
       const connected = await fs.connect();
+      
       if (connected) {
+        console.log('[StorageGate] Connected successfully, performing full scan...');
         try {
-          await indexService.fullScan();
+          const entries = await indexService.fullScan();
+          console.log(`[StorageGate] Full scan complete, found ${entries.length} leads`);
+          
+          if (entries.length === 0) {
+            console.log('[StorageGate] No existing leads found, ready for imports');
+            toast.info('Storage connected. Ready to import leads.');
+          } else {
+            toast.success(`Connected! Found ${entries.length} existing leads.`);
+          }
         } catch (e: unknown) {
-          console.error('[StorageGate] fullScan failed', e);
+          console.error('[StorageGate] fullScan failed:', e);
+          toast.error('Connected but failed to load leads. Try refreshing.');
         }
         setIsConnected(true);
       } else {
@@ -72,7 +97,7 @@ export function StorageGate({ children }: StorageGateProps) {
       }
     } catch (err: unknown) {
       setError((err instanceof Error ? err.message : 'Failed to connect to storage'));
-      console.error('Connection error:', err);
+      console.error('[StorageGate] Connection error:', err);
     } finally {
       setIsLoading(false);
     }

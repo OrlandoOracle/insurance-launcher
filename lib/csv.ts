@@ -182,15 +182,24 @@ export interface DuplicateCheckResult {
 }
 
 export function checkDuplicate(lead: Partial<Lead>): DuplicateCheckResult {
-  const matches: string[] = [];
+  const matches: Set<string> = new Set(); // Use Set to avoid duplicate IDs
   const reasons: string[] = [];
+  
+  console.log('[checkDuplicate] Checking lead:', lead.firstName, lead.lastName);
+  console.log('[checkDuplicate] Lead has emails:', lead.emails);
+  console.log('[checkDuplicate] Lead has phones:', lead.phones);
+  
+  // Ensure index is loaded before checking
+  const allLeads = indexService.get();
+  console.log('[checkDuplicate] Total leads in index:', allLeads.length);
 
   // Check by email
   if (lead.emails && lead.emails.length > 0) {
     for (const email of lead.emails) {
       const emailMatches = indexService.findByEmail(email);
+      console.log(`[checkDuplicate] Email '${email}' found ${emailMatches.length} matches`);
       if (emailMatches.length > 0) {
-        matches.push(...emailMatches.map(m => m.id));
+        emailMatches.forEach(m => matches.add(m.id));
         reasons.push(`Email ${email} already exists`);
       }
     }
@@ -200,16 +209,18 @@ export function checkDuplicate(lead: Partial<Lead>): DuplicateCheckResult {
   if (lead.phones && lead.phones.length > 0) {
     for (const phone of lead.phones) {
       const phoneMatches = indexService.findByPhone(phone);
+      console.log(`[checkDuplicate] Phone '${phone}' found ${phoneMatches.length} matches`);
       if (phoneMatches.length > 0) {
-        matches.push(...phoneMatches.map(m => m.id));
+        phoneMatches.forEach(m => matches.add(m.id));
         reasons.push(`Phone ${phone} already exists`);
       }
     }
   }
 
   // If no email/phone match, check by name + date proximity
-  if (matches.length === 0 && lead.firstName && lead.lastName) {
+  if (matches.size === 0 && lead.firstName && lead.lastName) {
     const nameMatches = indexService.findByName(lead.firstName, lead.lastName);
+    console.log(`[checkDuplicate] Name '${lead.firstName} ${lead.lastName}' found ${nameMatches.length} matches`);
     
     if (nameMatches.length > 0 && lead.createdAt) {
       const leadDate = new Date(lead.createdAt);
@@ -218,14 +229,17 @@ export function checkDuplicate(lead: Partial<Lead>): DuplicateCheckResult {
       for (const match of nameMatches) {
         const matchDate = new Date(match.updatedAt);
         if (Math.abs(leadDate.getTime() - matchDate.getTime()) <= fourteenDays) {
-          matches.push(match.id);
+          matches.add(match.id);
           reasons.push('Name match within 14 days');
         }
       }
     }
   }
 
-  const uniqueMatches = [...new Set(matches)];
+  // Convert Set back to array for return
+  const uniqueMatches = Array.from(matches);
+  
+  console.log(`[checkDuplicate] Result: isDuplicate=${uniqueMatches.length > 0}, matches=${uniqueMatches.length}, reasons=${reasons.join('; ')}`);
   
   return {
     isDuplicate: uniqueMatches.length > 0,

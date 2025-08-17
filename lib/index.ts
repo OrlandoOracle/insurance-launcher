@@ -24,16 +24,26 @@ export class IndexService {
   private migrated = false;
 
   async load(): Promise<IndexEntry[]> {
-    if (this.cache.length) return this.cache;
+    console.log('[index.load] Loading index, current cache size:', this.cache.length);
+    
+    // Always try to load from disk first
     try {
       const content = await fs.readFile(FOLDER_STRUCTURE.indexFile);
-      this.cache = JSON.parse(content);
+      const diskIndex = JSON.parse(content) as IndexEntry[];
+      console.log('[index.load] Loaded', diskIndex.length, 'entries from disk index');
+      this.cache = diskIndex;
     } catch (error: unknown) {
-      console.error('Failed to load index, rebuilding from disk:', error);
-      // If no index on disk, build it now
+      console.error('[index.load] Failed to load index from disk:', error);
+      console.log('[index.load] Will rebuild from filesystem scan');
+    }
+    
+    // If cache is empty, do a full scan
+    if (this.cache.length === 0) {
+      console.log('[index.load] Cache empty, performing full scan');
       await this.fullScan();
     }
     
+    console.log('[index.load] Returning', this.cache.length, 'total entries');
     return this.cache;
   }
 
@@ -78,7 +88,15 @@ export class IndexService {
   /** NEW: Full filesystem scan to rebuild cache from disk */
   async fullScan(): Promise<IndexEntry[]> {
     console.log('[index.fullScan] Starting full filesystem scan...');
+    console.log('[index.fullScan] Checking filesystem connection:', fs.isConnected());
+    
+    if (!fs.isConnected()) {
+      console.error('[index.fullScan] Filesystem not connected, cannot scan');
+      return this.cache;
+    }
+    
     const next: IndexEntry[] = [];
+    const errors: Array<{path: string; error: unknown}> = [];
 
     for (const stageDir of STAGE_DIRS) {
       let children: Array<{ name: string; kind: 'file' | 'directory' }> = [];
@@ -121,6 +139,12 @@ export class IndexService {
           console.log(`[index.fullScan] Added lead: ${parsed.firstName} ${parsed.lastName} (${parsed.id})`);
         } catch (e: unknown) {
           console.error('[index.fullScan] Failed to read', jsonPath, e);
+          errors.push({ path: jsonPath, error: e });
+          
+          // Try to extract useful error info
+          if (e instanceof Error) {
+            console.error('[index.fullScan] Error details:', e.message, e.stack);
+          }
           continue;
         }
       }
@@ -128,6 +152,14 @@ export class IndexService {
 
     // Replace cache and persist index
     this.cache = next.sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
+    
+    if (errors.length > 0) {
+      console.warn(`[index.fullScan] Scan completed with ${errors.length} errors:`);
+      errors.forEach(({ path, error }) => {
+        console.warn(`  - ${path}: ${error}`);
+      });
+    }
+    
     await this.save();
     console.log(`[index.fullScan] Complete. Found ${this.cache.length} leads total`);
     return this.cache;

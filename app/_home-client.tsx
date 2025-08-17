@@ -36,10 +36,18 @@ export default function HomeClient() {
     setMounted(true);
   });
 
-  const { data: leads = [], refetch, isLoading } = useQuery({
+  const { data: leads = [], refetch, isLoading, error } = useQuery({
     queryKey: ['leads'],
     queryFn: async () => {
-      return dataStore.getLeads();
+      console.log('[HomeClient] Fetching leads from data store...');
+      try {
+        const result = await dataStore.getLeads();
+        console.log('[HomeClient] Fetched', result.length, 'leads');
+        return result;
+      } catch (e: unknown) {
+        console.error('[HomeClient] Failed to fetch leads:', e);
+        throw e;
+      }
     },
     enabled: mounted,
   });
@@ -50,18 +58,30 @@ export default function HomeClient() {
     let isMounted = true;
 
     const doScan = async () => {
+      console.log('[HomeClient] Performing initial scan...');
       try {
-        await indexService.fullScan();
-        if (isMounted) refetch();
+        const entries = await indexService.fullScan();
+        console.log('[HomeClient] Initial scan found', entries.length, 'leads');
+        if (isMounted) {
+          console.log('[HomeClient] Triggering refetch after scan');
+          refetch();
+        }
       } catch (e: unknown) {
-        console.error('[Home] initial fullScan failed', e);
+        console.error('[HomeClient] Initial fullScan failed:', e);
+        if (e instanceof Error) {
+          console.error('[HomeClient] Error details:', e.message, e.stack);
+        }
       }
     };
 
     doScan();
 
     const onIndexUpdated = () => {
-      if (isMounted) refetch();
+      console.log('[HomeClient] Index updated event received');
+      if (isMounted) {
+        console.log('[HomeClient] Refetching leads...');
+        refetch();
+      }
     };
     window.addEventListener('index:updated', onIndexUpdated);
 
@@ -120,13 +140,19 @@ export default function HomeClient() {
   };
 
   const handleRebuildIndex = async () => {
+    console.log('[HomeClient] User triggered index rebuild');
     try {
-      await indexService.fullScan();
-      toast.success('Index rebuilt from disk');
+      const entries = await indexService.fullScan();
+      console.log('[HomeClient] Index rebuilt with', entries.length, 'entries');
+      toast.success(`Index rebuilt: Found ${entries.length} leads`);
       refetch();
     } catch (error: unknown) {
-      console.error('Failed to rebuild index:', error);
-      toast.error('Failed to rebuild index');
+      console.error('[HomeClient] Failed to rebuild index:', error);
+      if (error instanceof Error) {
+        toast.error(`Failed to rebuild index: ${error.message}`);
+      } else {
+        toast.error('Failed to rebuild index');
+      }
     }
   };
 
@@ -238,6 +264,13 @@ export default function HomeClient() {
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 Loading leads...
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <p className="text-destructive mb-4">Failed to load leads</p>
+                <Button variant="outline" onClick={() => refetch()}>
+                  Try Again
+                </Button>
               </div>
             ) : (
               <LeadTable
