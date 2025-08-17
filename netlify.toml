@@ -1,0 +1,32 @@
+[build]
+  command = "npm ci && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NEXT_TELEMETRY_DISABLED = "1"
+  STORAGE_MODE = "browser"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Production context: only deploys from main branch
+[context.production]
+  branch = "main"
+
+# Deploy Preview context: for pull requests
+[context.deploy-preview]
+  command = "npm ci && npm run build"
+
+# Branch Deploy context: for all other branches
+[context.branch-deploy]
+  command = "npm ci && npm run build"

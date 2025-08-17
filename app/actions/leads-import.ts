@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import fs from 'fs/promises'
 import path from 'path'
 import { LeadStage } from '@prisma/client'
+import { isBrowserAdapter, save, getDataDir } from '@/lib/storage'
 
 type ParsedRow = Record<string, string>
 
@@ -105,8 +106,14 @@ export async function importLeads({
   rows: ParsedRow[]
   filename: string 
 }): Promise<ImportResult> {
+  // Check if in browser mode
+  if (isBrowserAdapter) {
+    throw new Error('Lead import is not available in browser storage mode')
+  }
+  
   // Ensure imports directory exists
-  const dataDir = path.join(process.cwd(), 'data', 'imports')
+  const baseDataDir = await getDataDir()
+  const dataDir = path.join(baseDataDir, 'imports')
   await fs.mkdir(dataDir, { recursive: true })
   
   // Save original CSV with timestamp

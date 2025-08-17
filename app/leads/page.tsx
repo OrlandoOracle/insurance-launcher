@@ -15,7 +15,7 @@ export default async function LeadsPage() {
   })
 
   // Transform to match expected format
-  const contacts = leads.map(lead => ({
+  const contacts = leads.map((lead: any) => ({
     id: lead.id,
     firstName: lead.firstName,
     lastName: lead.lastName,

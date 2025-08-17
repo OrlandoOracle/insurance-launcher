@@ -110,7 +110,7 @@ export const useBulkSelectionStore = create<State & Actions>()(
         },
         setItem: (name, value) => {
           // Convert Set to array for storage
-          const data = { ...value };
+          const data = { ...value } as any;
           if (data?.state?.selectedIdsOnPage) {
             data.state.selectedIdsOnPage = Array.from(data.state.selectedIdsOnPage);
           }

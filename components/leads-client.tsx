@@ -84,11 +84,10 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
   const handleLogKPI = async (contactId: string, type: 'CALL' | 'EMAIL', outcome?: string) => {
     try {
       await logKpi({
-        contactId,
+        contactIds: [contactId],
         type,
-        outcome: outcome as any,
         date: new Date()
-      })
+      } as any)
       toast.success('Activity logged')
       await loadContacts()
     } catch (error) {
@@ -337,9 +336,9 @@ export function LeadsClient({ initialContacts }: LeadsClientProps) {
 
       {selectedLeadId && (
         <LeadDetailDrawer
-          leadId={selectedLeadId}
+          contactId={selectedLeadId}
           open={!!selectedLeadId}
-          onClose={() => setSelectedLeadId(null)}
+          onOpenChange={(open) => !open && setSelectedLeadId(null)}
         />
       )}
     </>

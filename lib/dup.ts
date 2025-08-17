@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { Contact } from '@prisma/client';
+type Contact = any;
 
 /**
  * Normalize phone number for comparison

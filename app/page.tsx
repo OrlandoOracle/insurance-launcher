@@ -21,10 +21,10 @@ async function getKPIData(daysAgo: number = 0) {
       })
     ])
     
-    const dials = activities.filter(a => a.type === 'CALL').reduce((sum, a) => sum + (a.count || 1), 0)
-    const connects = activities.filter(a => a.outcome === 'CONNECTED').reduce((sum, a) => sum + (a.count || 1), 0)
-    const closes = activities.filter(a => a.outcome === 'CLOSED').reduce((sum, a) => sum + (a.count || 1), 0)
-    const revenue = activities.filter(a => a.outcome === 'CLOSED').reduce((sum, a) => sum + (a.revenue || 0), 0)
+    const dials = activities.filter((a: any) => a.type === 'CALL').reduce((sum: any, a: any) => sum + (a.count || 1), 0)
+    const connects = activities.filter((a: any) => a.outcome === 'CONNECTED').reduce((sum: any, a: any) => sum + (a.count || 1), 0)
+    const closes = activities.filter((a: any) => a.outcome === 'CLOSED').reduce((sum: any, a: any) => sum + (a.count || 1), 0)
+    const revenue = activities.filter((a: any) => a.outcome === 'CLOSED').reduce((sum: any, a: any) => sum + (a.revenue || 0), 0)
     const conversionRate = dials > 0 ? ((closes / dials) * 100).toFixed(1) : '0'
     
     return { dials, connects, closes, revenue, conversionRate }

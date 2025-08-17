@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import path from 'path'
 import fs from 'fs'
+import { isBrowserAdapter } from '@/lib/storage'
 
 export async function GET() {
+  const storageMode = process.env.STORAGE_MODE || (isBrowserAdapter ? 'browser' : 'node')
   const dataDir = process.env.DATA_DIR?.trim() || path.resolve(process.cwd(), 'data')
   const dbPath = path.join(dataDir, 'insurance-launcher.db')
   const databaseUrl = process.env.DATABASE_URL || `file:${dbPath}`
@@ -31,14 +33,14 @@ export async function GET() {
         ORDER BY name
       `
       
-      tables = result.map(r => r.name)
+      tables = result.map((r: any) => r.name)
       
       // Get counts for each table
       for (const table of tables) {
         try {
-          const countResult = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+          const countResult = await (prisma.$queryRawUnsafe as any)(
             `SELECT COUNT(*) as count FROM ${table}`
-          )
+          ) as Array<{ count: bigint }>
           // Convert BigInt to number for JSON serialization
           counts[table] = Number(countResult[0]?.count || 0)
         } catch (e) {
@@ -59,7 +61,7 @@ export async function GET() {
       const columns = await prisma.$queryRaw<Array<{ name: string }>>`
         SELECT name FROM pragma_table_info('Contact')
       `
-      const columnNames = columns.map(c => c.name)
+      const columnNames = columns.map((c: any) => c.name)
       leadsSchemaOk = columnNames.includes('stage') && 
                       columnNames.includes('lastContacted') &&
                       columnNames.includes('archivedAt') &&
@@ -70,13 +72,18 @@ export async function GET() {
   }
 
   const health = {
-    ok: dbExists && tables.length > 0 && !error,
+    ok: storageMode === 'browser' ? true : (dbExists && tables.length > 0 && !error),
+    storage: {
+      mode: storageMode,
+      adapter: isBrowserAdapter ? 'browser' : 'node'
+    },
     database: {
       url: databaseUrl,
       path: dbPath,
       exists: dbExists,
       size: dbSize,
-      sizeFormatted: dbSize > 0 ? `${(dbSize / 1024).toFixed(2)} KB` : '0 KB'
+      sizeFormatted: dbSize > 0 ? `${(dbSize / 1024).toFixed(2)} KB` : '0 KB',
+      available: storageMode !== 'browser'
     },
     tables: {
       count: tables.length,
@@ -88,6 +95,8 @@ export async function GET() {
     },
     environment: {
       NODE_ENV: process.env.NODE_ENV,
+      NODE_VERSION: process.version,
+      STORAGE_MODE: storageMode,
       DATA_DIR: process.env.DATA_DIR || '(not set, using ./data)',
       resolvedDataDir: dataDir
     },

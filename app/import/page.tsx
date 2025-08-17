@@ -253,8 +253,8 @@ export default function ImportPage() {
                   id="csv-upload"
                 />
                 <label htmlFor="csv-upload">
-                  <Button as="span" className="cursor-pointer">
-                    Choose File
+                  <Button asChild>
+                    <span className="cursor-pointer">Choose File</span>
                   </Button>
                 </label>
                 {file && (

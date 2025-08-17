@@ -45,7 +45,7 @@ export default async function DiscoveryListPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {sessions.map((session) => {
+          {sessions.map((session: any) => {
             const data = session.jsonPayload as any
             const status = data?.discovery?.status || {}
             const statusLabels = []

@@ -109,18 +109,11 @@ export async function POST(request: NextRequest) {
         trim: true,
         ltrim: true,
         rtrim: true,
-        bom: true,
-        on_error: (error: any, context: any) => {
-          // Log parsing errors as warnings instead of failing
-          issues.push({
-            line: context?.lines || lineNumber,
-            reason: `Parse error: ${error.message}`,
-            sample: context?.record || null
-          });
-          // Continue parsing
-          return undefined;
-        },
-        on_record: (rec: any, context: any) => {
+        bom: true
+      } as any);
+      
+      // Count rows for error checking
+      rows.forEach((rec: any) => {
           lineNumber++;
           
           // Drop rows that are completely empty after trim
@@ -142,7 +135,7 @@ export async function POST(request: NextRequest) {
           }
           
           // Check for column count mismatch (warning, not error)
-          const expectedCols = context.columns?.length || 0;
+          const expectedCols = 0;
           const actualCols = Object.keys(rec).length;
           if (expectedCols > 0 && actualCols !== expectedCols) {
             issues.push({
@@ -152,8 +145,6 @@ export async function POST(request: NextRequest) {
             });
           }
           
-          return rec;
-        }
       });
     } catch (error: any) {
       // If bulk parse fails, try line-by-line parsing as fallback

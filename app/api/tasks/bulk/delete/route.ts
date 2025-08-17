@@ -63,17 +63,15 @@ function filtersToWhere(filters: TaskFilters | undefined): Prisma.TaskWhereInput
   // Text search
   if (filters.q) {
     where.title = { 
-      contains: filters.q,
-      mode: 'insensitive' 
-    };
+      contains: filters.q
+    } as any;
   }
   
   // Label filter
   if (filters.label) {
     where.label = {
-      contains: filters.label,
-      mode: 'insensitive'
-    };
+      contains: filters.label
+    } as any;
   }
   
   // Date range filters

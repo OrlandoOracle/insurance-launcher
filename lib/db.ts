@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import path from 'path'
 import fs from 'fs'
-import { getDataDirSync, ensureDataDirs, ensureDatabase } from './storage'
+import { getDataDirSync, ensureDataDirs, ensureDatabase } from './storage-old'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -9,6 +9,10 @@ declare global {
   var __DB_LOGGED__: boolean | undefined
   var __DB_INITIALIZED__: boolean | undefined
 }
+
+// Check if we're in browser storage mode
+const MODE = process.env.STORAGE_MODE;
+const isBrowser = typeof window !== 'undefined';
 
 function ensureDbUrl() {
   const dir = getDataDirSync()
@@ -56,12 +60,22 @@ if (typeof window === 'undefined') {
   initializeStorage().catch(console.error)
 }
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
+// Create a conditional prisma instance
+let prismaInstance: PrismaClient | any;
+
+if (MODE === 'browser' || (isBrowser && MODE !== 'node')) {
+  // Export a stub so accidental server usage is obvious
+  prismaInstance = new Proxy({}, {
+    get() { throw new Error('DB unavailable in browser storage mode'); }
+  }) as any;
+} else {
+  prismaInstance = global.prisma || new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
+  
+  if (process.env.NODE_ENV !== 'production') {
+    global.prisma = prismaInstance
+  }
 }
+
+export const prisma = prismaInstance

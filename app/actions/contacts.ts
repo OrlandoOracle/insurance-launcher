@@ -53,15 +53,15 @@ export async function getContacts(filters?: {
   
   // Filter by tags if specified
   if (filters?.tags && filters.tags.length > 0) {
-    contacts = contacts.filter(contact => {
+    contacts = contacts.filter((contact: any) => {
       const contactTags = JSON.parse(contact.tags || '[]')
-      return filters.tags!.some(tag => contactTags.includes(tag))
+      return filters.tags!.some((tag: string) => contactTags.includes(tag))
     })
   }
   
   // Filter by no next action if specified
   if (filters?.noNextAction) {
-    contacts = contacts.filter(contact => contact.tasks.length === 0)
+    contacts = contacts.filter((contact: any) => contact.tasks.length === 0)
   }
   
   return contacts
@@ -74,7 +74,7 @@ export async function getAllTags(): Promise<string[]> {
     })
     
     const tagSet = new Set<string>()
-    contacts.forEach(contact => {
+    contacts.forEach((contact: any) => {
       const tags = JSON.parse(contact.tags || '[]')
       tags.forEach((tag: string) => tagSet.add(tag))
     })

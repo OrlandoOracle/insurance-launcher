@@ -425,7 +425,6 @@ export default function TasksPage() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={pageAllChecked}
-                          indeterminate={pageIndeterminate}
                           onCheckedChange={(checked) => 
                             togglePage(currentPageIds, !!checked)
                           }

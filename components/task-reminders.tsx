@@ -32,24 +32,24 @@ export function TaskReminders() {
       try {
         const [overdueTasks, allOpenTasks] = await Promise.all([
           getOverdueTasks(),
-          getTasks('OPEN')
+          getTasks({ status: 'OPEN' })
         ])
 
         const now = new Date()
         const fifteenMinutesFromNow = addMinutes(now, 15)
 
         // Find tasks due within 15 minutes
-        const upcomingTasks = allOpenTasks.filter(task => {
+        const upcomingTasks = allOpenTasks.filter((task: any) => {
           if (!task.dueAt || remindedTasks.has(task.id)) return false
           const dueDate = new Date(task.dueAt)
           return isWithinInterval(dueDate, { start: now, end: fifteenMinutesFromNow })
         })
 
         // Find overdue tasks not yet reminded
-        const newOverdueTasks = overdueTasks.filter(task => !remindedTasks.has(task.id))
+        const newOverdueTasks = overdueTasks.filter((task: any) => !remindedTasks.has(task.id))
 
         // Show reminders for upcoming tasks
-        upcomingTasks.forEach(task => {
+        upcomingTasks.forEach((task: any) => {
           const dueDate = new Date(task.dueAt!)
           const minutesUntilDue = Math.round((dueDate.getTime() - now.getTime()) / 60000)
           const contactName = task.contact ? `${task.contact.firstName} ${task.contact.lastName}` : ''
@@ -79,7 +79,7 @@ export function TaskReminders() {
         })
 
         // Show reminders for overdue tasks
-        newOverdueTasks.forEach(task => {
+        newOverdueTasks.forEach((task: any) => {
           const contactName = task.contact ? `${task.contact.firstName} ${task.contact.lastName}` : ''
           
           const title = 'Overdue Task!'

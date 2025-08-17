@@ -133,7 +133,7 @@ export default function ImportLeadsDialog({ variant = 'default' }: ImportLeadsDi
           // Move to preview step
           setStep('preview')
         },
-        error: (err) => {
+        error: (err: any) => {
           setParseError(`Failed to parse CSV: ${err.message}`)
         }
       })

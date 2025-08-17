@@ -172,8 +172,8 @@ export function LeadDetailDrawer({ contactId, open, onOpenChange }: LeadDetailDr
     }
   }
 
-  const getStageColor = (stage: Stage) => {
-    const colors: Record<Stage, string> = {
+  const getStageColor = (stage: any) => {
+    const colors: Record<string, string> = {
       NEW_LEAD: 'bg-blue-100 text-blue-800',
       DISCOVERY: 'bg-purple-100 text-purple-800',
       QUOTE: 'bg-yellow-100 text-yellow-800',
@@ -198,10 +198,10 @@ export function LeadDetailDrawer({ contactId, open, onOpenChange }: LeadDetailDr
             <span>{contact.firstName} {contact.lastName}</span>
             <select
               value={contact.stage}
-              onChange={(e) => handleStageChange(e.target.value as Stage)}
+              onChange={(e) => handleStageChange(e.target.value as any)}
               className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${getStageColor(contact.stage)}`}
             >
-              {Object.values(Stage).map(stage => (
+              {['NEW_LEAD', 'DISCOVERY', 'QUOTE', 'PRESENTATION', 'APP', 'SOLD', 'ONBOARD', 'RENEWAL'].map(stage => (
                 <option key={stage} value={stage}>
                   {stage.replace(/_/g, ' ')}
                 </option>
@@ -229,10 +229,10 @@ export function LeadDetailDrawer({ contactId, open, onOpenChange }: LeadDetailDr
                 <span className="text-sm">{contact.phone || 'No phone'}</span>
               </div>
               
-              {contact.howHeard && (
+              {(contact as any).howHeard && (
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Source: {contact.howHeard}</span>
+                  <span className="text-sm">Source: {(contact as any).howHeard}</span>
                 </div>
               )}
               

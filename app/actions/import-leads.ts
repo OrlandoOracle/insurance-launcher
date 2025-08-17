@@ -266,7 +266,7 @@ export async function importLeads(csvContent: string, filename: string): Promise
       const chunk = rows.slice(i, Math.min(i + CHUNK_SIZE, rows.length))
       
       // Process chunk in transaction
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         for (const row of chunk) {
           processed++
           

@@ -276,7 +276,7 @@ export function LeadIntakeForm({ open, onClose }: LeadIntakeFormProps) {
         lastName: formData.lastName.trim(),
         email: normalizedEmail || '',
         phone: normalizedPhone || '',
-        howHeard: formData.howHeard.trim() || undefined,
+        source: formData.howHeard.trim() || undefined,
         ghlUrl: formData.ghlUrl.trim() || undefined,
         tags: tagArray
       })

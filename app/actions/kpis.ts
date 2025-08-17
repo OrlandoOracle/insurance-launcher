@@ -19,12 +19,12 @@ export async function getKPIs(days: number = 7) {
       }
     })
     
-    const dials = activities.filter(a => a.outcome === 'DIAL').length
-    const connects = activities.filter(a => a.outcome === 'CONNECT').length
-    const closes = activities.filter(a => a.outcome === 'CLOSE').length
+    const dials = activities.filter((a: any) => a.outcome === 'DIAL').length
+    const connects = activities.filter((a: any) => a.outcome === 'CONNECT').length
+    const closes = activities.filter((a: any) => a.outcome === 'CLOSE').length
     const revenue = activities
-      .filter(a => a.outcome === 'CLOSE' && a.revenue)
-      .reduce((sum, a) => sum + (a.revenue || 0), 0)
+      .filter((a: any) => a.outcome === 'CLOSE' && a.revenue)
+      .reduce((sum: number, a: any) => sum + (a.revenue || 0), 0)
     
     return {
       dials,

@@ -15,7 +15,7 @@ import {
 import { 
   Save, ExternalLink, FolderOpen, Chrome, User, 
   Database, HardDrive, AlertCircle, CheckCircle, 
-  Download, RefreshCw, Folder
+  Download, RefreshCw, Folder, Upload, FileJson
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -42,6 +42,8 @@ export default function SettingsPage() {
   const [backups, setBackups] = useState<any[]>([])
   const [importBatches, setImportBatches] = useState<any[]>([])
   const [creatingBackup, setCreatingBackup] = useState(false)
+  const [exportingData, setExportingData] = useState(false)
+  const [importingData, setImportingData] = useState(false)
 
   useEffect(() => {
     loadSettings()
@@ -218,6 +220,52 @@ export default function SettingsPage() {
     setTestResult('')
   }
 
+  const handleExportData = async () => {
+    setExportingData(true)
+    try {
+      const res = await fetch('/api/export')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `insurance-backup-${Date.now()}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Data exported successfully')
+    } catch (error: any) {
+      toast.error(error.message || 'Export failed')
+    } finally {
+      setExportingData(false)
+    }
+  }
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setImportingData(true)
+    try {
+      const text = await file.text()
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: text
+      })
+      
+      if (!res.ok) throw new Error(await res.text())
+      
+      toast.success('Data imported successfully')
+      // Reload the page to refresh all data
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Import failed')
+    } finally {
+      setImportingData(false)
+      // Reset the input
+      if (e.target) e.target.value = ''
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
@@ -372,6 +420,81 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Export/Import Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileJson className="h-5 w-5" />
+            Data Export & Import
+          </CardTitle>
+          <CardDescription>
+            Export all your data to a JSON file or import from a backup.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <Button
+              onClick={handleExportData}
+              disabled={exportingData}
+              variant="outline"
+              className="flex-1"
+            >
+              {exportingData ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export All Data
+                </>
+              )}
+            </Button>
+            
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="application/json"
+                onChange={handleImportData}
+                disabled={importingData}
+                className="hidden"
+                id="import-file-input"
+              />
+              <label htmlFor="import-file-input">
+                <Button
+                  variant="outline"
+                  disabled={importingData}
+                  className="w-full"
+                  asChild
+                >
+                  <span>
+                    {importingData ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import from File
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </label>
+            </div>
+          </div>
+          
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Note:</strong> Importing will replace all existing data. Make sure to export a backup first if you want to preserve current data.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
 
