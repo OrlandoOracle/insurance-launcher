@@ -1,6 +1,14 @@
 import { fs } from './fs';
 import { FOLDER_STRUCTURE, getStageFolder, leadFolderName } from './paths';
 import type { IndexEntry, Lead } from './schema';
+import { LeadSchema } from './schema';
+
+const STAGE_DIRS = [
+  FOLDER_STRUCTURE.ACTIVE,
+  FOLDER_STRUCTURE.SOLD,
+  FOLDER_STRUCTURE.LOST,
+  FOLDER_STRUCTURE.DUPS,
+];
 
 export class IndexService {
   private cache: IndexEntry[] = [];
@@ -14,63 +22,15 @@ export class IndexService {
       const content = await fs.readFile(FOLDER_STRUCTURE.indexFile);
       this.cache = JSON.parse(content);
     } catch (error: unknown) {
-      console.error('Failed to load index, rebuilding:', error);
-      await this.rebuild();
-    }
-    
-    // Run migration once per session
-    if (!this.migrated) {
-      await this.migrateLegacyFlatFiles();
-      this.migrated = true;
+      console.error('Failed to load index, will be rebuilt on scan:', error);
+      this.cache = [];
     }
     
     return this.cache;
   }
 
-  async rebuild(): Promise<IndexEntry[]> {
-    const entries: IndexEntry[] = [];
-    
-    const folders = [
-      FOLDER_STRUCTURE.active,
-      FOLDER_STRUCTURE.sold,
-      FOLDER_STRUCTURE.lost
-    ];
-
-    for (const folder of folders) {
-      try {
-        const files = await fs.listFiles(folder);
-        
-        for (const file of files) {
-          if (file.endsWith('.json') && !file.includes('_')) {
-            try {
-              const content = await fs.readFile(`${folder}/${file}`);
-              const lead: Lead = JSON.parse(content);
-              
-              entries.push({
-                id: lead.id,
-                filePath: `${folder}/${file}`,
-                folderPath: '',  // Will be set by migration
-                jsonPath: '',    // Will be set by migration
-                firstName: lead.firstName,
-                lastName: lead.lastName,
-                emails: lead.emails,
-                phones: lead.phones,
-                stage: lead.stage,
-                updatedAt: lead.updatedAt
-              });
-            } catch (error: unknown) {
-              console.error(`Failed to parse ${folder}/${file}:`, error);
-            }
-          }
-        }
-      } catch (error: unknown) {
-        console.error(`Failed to list files in ${folder}:`, error);
-      }
-    }
-
-    this.cache = entries;
-    await this.save();
-    return entries;
+  async save(): Promise<void> {
+    await fs.writeJSONAt('leads.index.json', this.cache);
   }
 
   async upsert(entry: IndexEntry): Promise<void> {
@@ -104,6 +64,68 @@ export class IndexService {
   async findById(id: string): Promise<IndexEntry | undefined> {
     if (!this.cache.length) await this.load();
     return this.cache.find(e => e.id === id);
+  }
+
+  /** NEW: Full filesystem scan to rebuild cache from disk */
+  async fullScan(): Promise<IndexEntry[]> {
+    console.log('[index.fullScan] Starting full filesystem scan...');
+    const next: IndexEntry[] = [];
+
+    for (const stageDir of STAGE_DIRS) {
+      let children: Array<{ name: string; kind: 'file' | 'directory' }> = [];
+      try {
+        children = await fs.listDir(stageDir);
+      } catch (e: unknown) {
+        // Folder may not exist yet; skip
+        console.log(`[index.fullScan] Stage dir ${stageDir} not found, skipping`);
+        continue;
+      }
+
+      console.log(`[index.fullScan] Scanning ${stageDir}: found ${children.length} entries`);
+
+      for (const child of children) {
+        if (child.kind !== 'directory') continue;
+        const folderPath = `${stageDir}/${child.name}`;
+        const jsonPath = `${folderPath}/lead.json`;
+        
+        try {
+          const exists = await fs.fileExists(jsonPath);
+          if (!exists) {
+            console.log(`[index.fullScan] No lead.json in ${folderPath}, skipping`);
+            continue;
+          }
+
+          const lead = await fs.readJSON<Lead>(jsonPath);
+          const parsed = LeadSchema.parse(lead);
+          next.push({
+            id: parsed.id,
+            firstName: parsed.firstName,
+            lastName: parsed.lastName,
+            emails: parsed.emails || [],
+            phones: parsed.phones || [],
+            stage: parsed.stage,
+            updatedAt: parsed.updatedAt,
+            filePath: jsonPath, // legacy field kept for compatibility
+            folderPath,
+            jsonPath
+          });
+          console.log(`[index.fullScan] Added lead: ${parsed.firstName} ${parsed.lastName} (${parsed.id})`);
+        } catch (e: unknown) {
+          console.error('[index.fullScan] Failed to read', jsonPath, e);
+          continue;
+        }
+      }
+    }
+
+    // Replace cache and persist index
+    this.cache = next.sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
+    await this.save();
+    console.log(`[index.fullScan] Complete. Found ${this.cache.length} leads total`);
+    return this.cache;
+  }
+
+  async rebuild(): Promise<IndexEntry[]> {
+    return this.fullScan();
   }
 
   // Legacy sync methods for backward compat
@@ -188,27 +210,6 @@ export class IndexService {
     this.saveTimeout = setTimeout(() => {
       this.save();
     }, 1000);
-  }
-
-  async save(): Promise<void> {
-    const now = Date.now();
-    if (now - this.lastSaved < 500) return; // Debounce
-    
-    try {
-      const sorted = [...this.cache].sort((a, b) => 
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      );
-      
-      await fs.writeFile(
-        FOLDER_STRUCTURE.indexFile,
-        JSON.stringify(sorted, null, 2)
-      );
-      
-      this.lastSaved = now;
-    } catch (error: unknown) {
-      console.error('Failed to save index:', error);
-      throw error;
-    }
   }
 }
 

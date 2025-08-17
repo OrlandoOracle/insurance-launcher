@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { parseCSV, mapCSVToLead, validateLead, checkDuplicate, DEFAULT_MAPPING, type CSVRow } from '@/lib/csv';
 import { dataStore } from '@/lib/data-store';
+import { indexService } from '@/lib/index';
 import { fs } from '@/lib/fs';
 import { FOLDER_STRUCTURE, getLeadFolderByStage, getLeadFilename } from '@/lib/paths';
 import { toast } from '@/components/ui/sonner';
@@ -212,6 +213,14 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
     } catch (error) {
       console.error('[import] Failed to save import report:', error);
       // Don't fail the import if we can't save the report
+    }
+
+    // Refresh the index to show new leads immediately
+    try {
+      await indexService.fullScan();
+      console.log('[import] Index refreshed after import');
+    } catch (e: unknown) {
+      console.error('[import] post-import scan failed', e);
     }
 
     setImportReport(report);

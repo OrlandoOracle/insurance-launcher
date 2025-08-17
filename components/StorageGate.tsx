@@ -39,7 +39,11 @@ export function StorageGate({ children }: StorageGateProps) {
     try {
       const restored = await fs.restore();
       if (restored) {
-        await indexService.load();
+        try {
+          await indexService.fullScan();
+        } catch (e: unknown) {
+          console.error('[StorageGate] fullScan on restore failed', e);
+        }
         setIsConnected(true);
       }
     } catch (err: unknown) {
@@ -57,7 +61,11 @@ export function StorageGate({ children }: StorageGateProps) {
     try {
       const connected = await fs.connect();
       if (connected) {
-        await indexService.load();
+        try {
+          await indexService.fullScan();
+        } catch (e: unknown) {
+          console.error('[StorageGate] fullScan failed', e);
+        }
         setIsConnected(true);
       } else {
         setError('Connection cancelled or denied');

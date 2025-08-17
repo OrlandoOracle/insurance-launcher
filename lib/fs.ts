@@ -303,6 +303,35 @@ export class FileSystemService {
     await this.ensureFolder(folderPath);
     await this.writeFile(jsonPath, JSON.stringify(data, null, 2));
   }
+
+  async listDir(path: string): Promise<Array<{ name: string; kind: 'file' | 'directory' }>> {
+    if (!this.rootHandle) throw new Error('No root handle');
+    const parts = path.split('/').filter(Boolean);
+    // @ts-expect-error: lib dom typing gap
+    let dir: FileSystemDirectoryHandle = this.rootHandle;
+    for (const p of parts) {
+      // @ts-expect-error: lib dom typing gap
+      dir = await dir.getDirectoryHandle(p, { create: false });
+    }
+    const entries: Array<{ name: string; kind: 'file' | 'directory' }> = [];
+    // @ts-expect-error: for-await not typed across all lib targets
+    for await (const [name, handle] of (dir as any).entries()) {
+      entries.push({ name, kind: (handle as any).kind });
+    }
+    return entries;
+  }
+
+  async fileExists(path: string): Promise<boolean> {
+    try {
+      // @ts-expect-error: lib dom typing gap
+      const h = await this.getHandleForPath(path);
+      // Try reading to be sure it's a file
+      await this.readFile(path);
+      return true;
+    } catch (e: unknown) {
+      return false;
+    }
+  }
 }
 
 export const fs = new FileSystemService();

@@ -91,10 +91,10 @@ export default function HomeClient() {
 
   const handleRebuildIndex = async () => {
     try {
-      await indexService.rebuild();
-      toast.success('Index rebuilt successfully');
+      await indexService.fullScan();
+      toast.success('Index rebuilt from disk');
       refetch();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to rebuild index:', error);
       toast.error('Failed to rebuild index');
     }
