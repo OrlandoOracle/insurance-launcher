@@ -201,7 +201,7 @@ export default function NewLeadPage() {
                 <Label htmlFor="stage">Stage</Label>
                 <Select
                   value={formData.stage}
-                  onValueChange={(value) => setFormData({ ...formData, stage: value as any })}
+                  onValueChange={(value) => setFormData({ ...formData, stage: value as (typeof StageEnum.options)[number] })}
                 >
                   <SelectTrigger>
                     <SelectValue />

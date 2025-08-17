@@ -16,7 +16,7 @@ export class FileSystemService {
         return false;
       }
       
-      // @ts-ignore - File System Access API
+      // @ts-expect-error: showDirectoryPicker not in TS lib
       this.rootHandle = await window.showDirectoryPicker({
         mode: 'readwrite',
         startIn: 'desktop'
@@ -30,8 +30,8 @@ export class FileSystemService {
       
       console.debug('[fs.connect] Connection successful');
       return true;
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
         console.debug('[fs.connect] User cancelled directory picker');
       } else {
         console.error('[fs.connect] Failed to connect storage:', error);
@@ -71,7 +71,7 @@ export class FileSystemService {
       
       console.debug('[fs.restore] Permission denied');
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[fs.restore] Failed to restore storage:', error);
       return false;
     }
@@ -107,7 +107,7 @@ export class FileSystemService {
     // Create index file if it doesn't exist
     try {
       await this.readFile(FOLDER_STRUCTURE.indexFile);
-    } catch {
+    } catch (e: unknown) {
       await this.writeFile(FOLDER_STRUCTURE.indexFile, JSON.stringify([], null, 2));
     }
   }
@@ -197,7 +197,7 @@ export class FileSystemService {
     }
     
     const files: string[] = [];
-    // @ts-ignore
+    // @ts-expect-error: entries() not in TS lib for FileSystemDirectoryHandle
     for await (const [name, handle] of current.entries()) {
       if (handle.kind === 'file' && name.endsWith('.json')) {
         files.push(name);
@@ -211,7 +211,7 @@ export class FileSystemService {
     try {
       await this.readFile(path);
       return true;
-    } catch {
+    } catch (e: unknown) {
       return false;
     }
   }
@@ -232,7 +232,7 @@ export class FileSystemService {
       const uuid = uuidv4().split('-')[0]; // Use first part of UUID for brevity
       filename = `${baseName}__${uuid}.json`;
       filePath = `${folder}/${filename}`;
-    } catch {
+    } catch (e: unknown) {
       // File doesn't exist, use original path
     }
     
@@ -243,16 +243,18 @@ export class FileSystemService {
     if (!this.rootHandle) return false;
     
     try {
+      // @ts-expect-error: queryPermission not in TS lib
       const permission = await this.rootHandle.queryPermission({ mode: 'readwrite' });
       if (permission === 'granted') return true;
       
       if (permission === 'prompt') {
+        // @ts-expect-error: requestPermission not in TS lib
         const newPermission = await this.rootHandle.requestPermission({ mode: 'readwrite' });
         return newPermission === 'granted';
       }
       
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[fs.verifyWritePermission] Error:', error);
       return false;
     }
@@ -262,6 +264,15 @@ export class FileSystemService {
     for (const folder of folders) {
       await this.ensureFolder(folder);
     }
+  }
+
+  async readJSON<T>(path: string): Promise<T> {
+    const text = await this.readFile(path);
+    return JSON.parse(text) as T;
+  }
+
+  async writeJSON<T>(path: string, data: T): Promise<void> {
+    await this.writeFile(path, JSON.stringify(data, null, 2));
   }
 }
 

@@ -40,7 +40,7 @@ export const LeadSchema = z.object({
   })).default([]),
   insuredWith: z.string().optional(),
   income: z.number().optional(),
-  meta: z.record(z.any()).default({})
+  meta: z.record(z.string(), z.unknown()).default({})
 });
 
 export type Lead = z.infer<typeof LeadSchema>;
@@ -64,7 +64,7 @@ export interface ImportReport {
   duplicates: number;
   errors: number;
   details: {
-    originalRow: any;
+    originalRow: Record<string, string>;
     result: 'imported' | 'duplicate' | 'error';
     leadId?: string;
     filePath?: string;
@@ -82,7 +82,7 @@ export const CSVMappingSchema = z.object({
   tags: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
   source: z.string().optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.unknown()).optional()
 });
 
 export type CSVMapping = z.infer<typeof CSVMappingSchema>;

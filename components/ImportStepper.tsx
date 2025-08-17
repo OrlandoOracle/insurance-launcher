@@ -7,11 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { Upload, FileText, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { parseCSV, mapCSVToLead, validateLead, checkDuplicate, DEFAULT_MAPPING, type CSVRow } from '@/lib/csv';
 import { dataStore } from '@/lib/data-store';
@@ -33,8 +30,8 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, keyof Lead | 'meta' | 'ignore'>>({});
   const [mappedLeads, setMappedLeads] = useState<Partial<Lead>[]>([]);
-  const [validationResults, setValidationResults] = useState<any[]>([]);
-  const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+  const [validationResults, setValidationResults] = useState<{ lead: Partial<Lead>; validation: ReturnType<typeof validateLead>; duplicate: ReturnType<typeof checkDuplicate> }[]>([]);
+  const [duplicateResults, setDuplicateResults] = useState<{ lead: Partial<Lead>; validation: ReturnType<typeof validateLead>; duplicate: ReturnType<typeof checkDuplicate> }[]>([]);
   const [importing, setImporting] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
 
@@ -192,14 +189,14 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
             error: validation.validation.errors.join('; ')
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[import] Row ${i + 1}: Unexpected error:`, error);
         
         report.errors++;
         report.details.push({
           originalRow: csvData[i],
           result: 'error',
-          error: error?.message || String(error)
+          error: (error instanceof Error ? error.message : String(error))
         });
       }
     }
@@ -281,7 +278,7 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Map CSV Columns</h3>
           <p className="text-sm text-muted-foreground">
-            Map your CSV columns to lead fields. We've auto-detected some mappings for you.
+            Map your CSV columns to lead fields. We&apos;ve auto-detected some mappings for you.
           </p>
           
           <div className="grid grid-cols-2 gap-4">
@@ -290,7 +287,7 @@ export function ImportStepper({ onComplete }: ImportStepperProps) {
                 <Label className="w-1/2 text-sm">{header}:</Label>
                 <Select
                   value={mapping[header]}
-                  onValueChange={(value) => setMapping({ ...mapping, [header]: value as any })}
+                  onValueChange={(value) => setMapping({ ...mapping, [header]: value as (keyof Lead | 'meta' | 'ignore') })}
                 >
                   <SelectTrigger className="w-1/2">
                     <SelectValue />

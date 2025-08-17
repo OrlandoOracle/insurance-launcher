@@ -42,7 +42,7 @@ export function StorageGate({ children }: StorageGateProps) {
         await indexService.load();
         setIsConnected(true);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to restore connection:', err);
       setError('Failed to restore previous connection');
     } finally {
@@ -62,8 +62,8 @@ export function StorageGate({ children }: StorageGateProps) {
       } else {
         setError('Connection cancelled or denied');
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to connect to storage');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : 'Failed to connect to storage'));
       console.error('Connection error:', err);
     } finally {
       setIsLoading(false);
@@ -178,7 +178,7 @@ export function StorageGate({ children }: StorageGateProps) {
             
             <div className="text-sm text-muted-foreground space-y-2">
               <p>• Make sure your external drive is connected</p>
-              <p>• You'll be prompted to select the InsuranceData folder</p>
+              <p>• You&apos;ll be prompted to select the InsuranceData folder</p>
               <p>• Grant permission for read/write access when asked</p>
             </div>
           </CardContent>
@@ -208,11 +208,12 @@ function ReconnectToast({ onReconnect }: { onReconnect: () => void }) {
       const handle = fs.getRootHandle();
       if (handle) {
         try {
+          // @ts-expect-error: File System Access API not in TS lib
           const permission = await handle.queryPermission({ mode: 'readwrite' });
           if (permission !== 'granted') {
             setShowReconnect(true);
           }
-        } catch {
+        } catch (e: unknown) {
           setShowReconnect(true);
         }
       }

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Edit, FileText, Calendar, Phone, Mail, MapPin, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { dataStore } from '@/lib/data-store';
@@ -33,6 +32,7 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     loadLead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId]);
 
   const loadLead = async () => {
@@ -54,7 +54,7 @@ export default function LeadDetailPage() {
         toast.error('Lead not found');
         router.push('/');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load lead:', error);
       toast.error('Failed to load lead');
     } finally {
@@ -67,7 +67,7 @@ export default function LeadDetailPage() {
       await dataStore.createCompanionFile(leadId, type);
       await loadLead();
       toast.success(`${type} file created`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to create ${type} file:`, error);
       toast.error(`Failed to create ${type} file`);
     }

@@ -1,18 +1,18 @@
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
 import { parseISO, isValid } from 'date-fns';
-import type { Lead, CSVMapping, ImportReport } from './schema';
+import type { Lead } from './schema';
 import { indexService } from './index';
 import { StageEnum } from './schema';
 
 export interface CSVRow {
-  [key: string]: string;
+  [key: string]: string | number | null | undefined;
 }
 
 export interface MappingField {
   csvColumn: string;
   leadField: keyof Lead | 'ignore';
-  transform?: (value: string) => any;
+  transform?: (value: string) => unknown;
 }
 
 export const DEFAULT_MAPPING: Record<string, keyof Lead | 'meta' | 'ignore'> = {
@@ -110,7 +110,7 @@ export function mapCSVToLead(
       }
     } else {
       // Direct assignment for other fields
-      (lead as any)[leadField] = value;
+      (lead as Record<string, unknown>)[leadField] = value;
     }
   }
 
@@ -163,7 +163,7 @@ export function validateLead(lead: Partial<Lead>): ValidationResult {
   if (lead.stage) {
     try {
       StageEnum.parse(lead.stage);
-    } catch {
+    } catch (e: unknown) {
       warnings.push(`Stage "${lead.stage}" is not recognized`);
     }
   }

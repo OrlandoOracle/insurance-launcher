@@ -33,6 +33,7 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
 
   useEffect(() => {
     loadLead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId]);
 
   const loadLead = async () => {
@@ -43,7 +44,7 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
         setLead(data);
         setFormData(data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load lead:', error);
       toast.error('Failed to load lead');
     } finally {
@@ -57,7 +58,7 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
       await dataStore.updateLead(leadId, formData);
       toast.success('Lead updated successfully');
       onSave();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to save lead:', error);
       toast.error('Failed to save changes');
     } finally {
@@ -155,7 +156,7 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
               <Label htmlFor="stage">Stage</Label>
               <Select
                 value={formData.stage}
-                onValueChange={(value) => setFormData({ ...formData, stage: value as any })}
+                onValueChange={(value) => setFormData({ ...formData, stage: value as (typeof StageEnum.options)[number] })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -189,8 +190,8 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
                   <Input
                     placeholder="Add phone number"
                     value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addPhone()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPhone(e.target.value)}
+                    onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && addPhone()}
                   />
                   <Button size="sm" onClick={addPhone}>
                     <Plus className="h-4 w-4" />
@@ -219,8 +220,8 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
                     type="email"
                     placeholder="Add email address"
                     value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addEmail()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewEmail(e.target.value)}
+                    onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && addEmail()}
                   />
                   <Button size="sm" onClick={addEmail}>
                     <Plus className="h-4 w-4" />
@@ -250,8 +251,8 @@ export function LeadEditorPanel({ leadId, onClose, onSave }: LeadEditorPanelProp
                 <Input
                   placeholder="Add tag"
                   value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addTag()}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTag(e.target.value)}
+                  onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && addTag()}
                 />
                 <Button size="sm" onClick={addTag}>
                   <Plus className="h-4 w-4" />
